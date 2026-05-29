@@ -17,7 +17,7 @@ const registerUser = async (req, res) => {
             if (err instanceof Error) {
                 console.log(err);
 
-                return res.status(401).json({
+                return res.status(400).json({
                     error: err
                 });
             }
