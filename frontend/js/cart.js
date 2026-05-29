@@ -1,5 +1,5 @@
 $(document).ready(function () {
-    const url = 'http://172.34.11.117:8000/'
+    const url = 'http://localhost:5000/'
     function getCart() {
         let cart = localStorage.getItem('cart');
         return cart ? JSON.parse(cart) : [];
@@ -77,7 +77,20 @@ $(document).ready(function () {
         renderCart();
     });
 
-    $('#header').load("header.html");
+    $("#header").load("header.html", function() {
+        // This inner block runs automatically the exact millisecond header.html finishes rendering!
+        let cart = getCart();
+        
+        // 🛠️ CHANGED HERE: Calculate using array length instead of looping through quantities
+        let totalItems = cart.length;
+        
+        if (totalItems > 0) {
+            // Push that unique total to the badge and force it to show up
+            $('#itemCount').text(totalItems).show();
+        } else {
+            $('#itemCount').hide();
+        }
+    });
 
     $('#checkoutBtn').on('click', function () {
 

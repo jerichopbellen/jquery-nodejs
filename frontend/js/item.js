@@ -1,5 +1,5 @@
 $(document).ready(function () {
-    const url = 'http://localhost:4000'
+    const url = 'http://localhost:5000/'
 
     const getToken = () => {
         const token = sessionStorage.getItem('token');
@@ -224,4 +224,5 @@ $(document).ready(function () {
         }
 
     })
+    
 })

@@ -1,6 +1,5 @@
 $(document).ready(function () {
-    const url = 'http://localhost:4000/'
-    var itemCount = 0;
+    const url = 'http://localhost:5000/'
     var priceTotal = 0;
     var quantity = 0;
 
@@ -119,13 +118,37 @@ $(document).ready(function () {
         }
         saveCart(cart);
 
-        itemCount++;
-        $('#itemCount').text(itemCount).css('display', 'block');
-        $('#productDetailsModal').modal('hide')
+        let totalItems = cart.length;
+
+        // Update the badge element immediately with the unique items total
+        if (totalItems > 0) {
+            $('#itemCount').text(totalItems).show();
+        } else {
+            $('#itemCount').hide();
+        }
+
+        // Update the badge element immediately with the true array total
+        $('#itemCount').text(totalItems).show();
+
+        // Hide the modal popup
+        $('#productDetailsModal').modal('hide');
         // console.log(cart)
 
     });
 
-    $("#home").load("header.html")
-
+    // To this smart loading block:
+    $("#home").load("header.html", function() {
+        // This inner block runs automatically the exact millisecond header.html finishes rendering!
+        let cart = getCart();
+        
+        // 🛠️ CHANGED HERE: Calculate using array length instead of looping through quantities
+        let totalItems = cart.length;
+        
+        if (totalItems > 0) {
+            // Push that unique total to the badge and force it to show up
+            $('#itemCount').text(totalItems).show();
+        } else {
+            $('#itemCount').hide();
+        }
+    });
 })

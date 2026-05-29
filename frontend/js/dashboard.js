@@ -1,5 +1,5 @@
 $(document).ready(function () {
-    const url = 'http://172.34.11.117:8000/'
+    const url = 'http://localhost:5000/'
     $.ajax({
         method: "GET",
         url: `${url}api/v1/dashboard/address-chart`,

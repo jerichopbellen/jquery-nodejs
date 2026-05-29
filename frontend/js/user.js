@@ -1,5 +1,5 @@
 $(document).ready(function () {
-    const url = 'http://localhost:4000/'
+    const url = 'http://localhost:5000/'
 
     $("#register").on('click', function (e) {
         e.preventDefault();
@@ -147,5 +147,20 @@ $(document).ready(function () {
                 console.log(error);
             }
         });
+    });
+    
+    $("#home").load("header.html", function() {
+        // This inner block runs automatically the exact millisecond header.html finishes rendering!
+        let cart = getCart();
+        
+        // 🛠️ CHANGED HERE: Calculate using array length instead of looping through quantities
+        let totalItems = cart.length;
+        
+        if (totalItems > 0) {
+            // Push that unique total to the badge and force it to show up
+            $('#itemCount').text(totalItems).show();
+        } else {
+            $('#itemCount').hide();
+        }
     });
 })
