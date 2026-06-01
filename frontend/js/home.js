@@ -1,7 +1,5 @@
 $(document).ready(function () {
     const url = 'http://localhost:5000/'
-    var priceTotal = 0;
-    var quantity = 0;
 
     const getCart = () => {
         let cart = localStorage.getItem('cart');
@@ -17,16 +15,13 @@ $(document).ready(function () {
         url: `${url}api/v1/items`,
         dataType: 'json',
         success: function (data) {
-            // console.log(data);
             $("#items").empty();
-            //     // Start a row
             let row;
             $.each(data.rows, function (key, value) {
                 if (key % 4 === 0) {
                     row = $('<div class="row"></div>');
                     $("#items").append(row);
                 }
-                // console.log(key);
                 var item = `<div class="col-md-3 mb-4">
                 <div class="card h-100">
                 <img src="${url}${value.img_path}" class="card-img-top" alt="${value.description}" >
@@ -82,7 +77,6 @@ $(document).ready(function () {
                         <button type="button" class="btn btn-primary" id="detailsAddToCart">Add to Cart</button>
                     `);
 
-                // Show modal
                 $('#productDetailsModal').modal('show');
             })
 
@@ -120,32 +114,22 @@ $(document).ready(function () {
 
         let totalItems = cart.length;
 
-        // Update the badge element immediately with the unique items total
         if (totalItems > 0) {
             $('#itemCount').text(totalItems).show();
         } else {
             $('#itemCount').hide();
         }
 
-        // Update the badge element immediately with the true array total
         $('#itemCount').text(totalItems).show();
 
-        // Hide the modal popup
         $('#productDetailsModal').modal('hide');
-        // console.log(cart)
-
     });
 
-    // To this smart loading block:
     $("#home").load("header.html", function() {
-        // This inner block runs automatically the exact millisecond header.html finishes rendering!
         let cart = getCart();
-        
-        // 🛠️ CHANGED HERE: Calculate using array length instead of looping through quantities
         let totalItems = cart.length;
         
         if (totalItems > 0) {
-            // Push that unique total to the badge and force it to show up
             $('#itemCount').text(totalItems).show();
         } else {
             $('#itemCount').hide();
