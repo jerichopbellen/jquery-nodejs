@@ -1,124 +1,158 @@
 const connection = require('../config/database');
-const bcrypt = require('bcrypt')
-const jwt = require('jsonwebtoken')
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 const registerUser = async (req, res) => {
-    // {
-    //   "name": "steve",
-    //   "email": "steve@gmail.com",
-    //   "password": "password"
-    // }
-    console.log(req.body)
-    const { name, password, email, } = req.body;
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const userSql = 'INSERT INTO users (name, password, email) VALUES (?, ?, ?)';
     try {
-        connection.execute(userSql, [name, hashedPassword, email], (err, result) => {
-            if (err instanceof Error) {
-                console.log(err);
+        const { name, password, email } = req.body;
 
+        if (!name || !password || !email) {
+            return res.status(400).json({
+                success: false,
+                message: 'name, email, and password are required'
+            });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const userSql = 'INSERT INTO users (name, password, email) VALUES (?, ?, ?)';
+
+        connection.execute(userSql, [name, hashedPassword, email], (err, result) => {
+            if (err) {
+                console.log(err);
                 return res.status(400).json({
-                    error: err
+                    success: false,
+                    message: 'Registration failed',
+                    error: err.message
                 });
             }
 
-            return res.status(200).json({
+            return res.status(201).json({
                 success: true,
+                message: 'User registered',
                 result
-            })
+            });
         });
     } catch (error) {
-        console.log(error)
+        console.log(error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
     }
-
 };
 
 const loginUser = (req, res) => {
     const { email, password } = req.body;
     const sql = 'SELECT id, name, email, password FROM users WHERE email = ? AND deleted_at IS NULL';
+
     connection.execute(sql, [email], async (err, results) => {
         if (err) {
             console.log(err);
-            return res.status(500).json({ error: 'Error logging in', details: err });
+            return res.status(500).json({ success: false, error: 'Error logging in', details: err.message });
         }
-        if (results.length === 0) {
+
+        if (!results || results.length === 0) {
             return res.status(401).json({ success: false, message: 'Invalid email or password' });
         }
 
         const user = results[0];
-
         const match = await bcrypt.compare(password, user.password);
+
         if (!match) {
             return res.status(401).json({ success: false, message: 'Invalid email or password' });
         }
 
-        // Remove password from response
         delete user.password;
-        const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET,);
+        const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET);
 
         return res.status(200).json({
-            success: "welcome back",
-            user: results[0],
+            success: true,
+            message: 'welcome back',
+            user,
             token
         });
     });
 };
 
 const updateUser = (req, res) => {
-    // {
-    //   "name": "steve",
-    //   "email": "steve@gmail.com",
-    //   "password": "password"
-    // }
-    console.log(req.body, req.file)
-    const { fname, lname, addressline, town, zipcode, phone, userId, } = req.body;
-
-    if (req.file) {
-        image = req.file.path.replace(/\\/g, "/");
-    }
-    //     INSERT INTO users(user_id, username, email)
-    //   VALUES(1, 'john_doe', 'john@example.com')
-    // ON DUPLICATE KEY UPDATE email = 'john@example.com';
-    const userSql = `
-  INSERT INTO customer 
-    (fname, lname, addressline,  zipcode, phone, image_path, user_id)
-  VALUES (?, ?, ?, ?, ?, ?, ?)
-  ON DUPLICATE KEY UPDATE 
-    fname = VALUES(fname),
-    lname = VALUES(lname),
-    addressline = VALUES(addressline),
-   
-    zipcode = VALUES(zipcode),
-    phone = VALUES(phone),
-    image_path = VALUES(image_path)`;
-    const params = [fname, lname, addressline, zipcode, phone, image, userId];
-
     try {
-        connection.execute(userSql, params, (err, result) => {
-            if (err instanceof Error) {
-                console.log(err);
+        const { fname, lname, addressline, zipcode, phone, town } = req.body;
+        let { userId } = req.body;
 
-                return res.status(401).json({
-                    error: err
+        if (typeof userId === 'string') {
+            userId = userId.replace(/"/g, '').trim();
+        }
+        userId = Number(userId);
+
+        if (!userId || Number.isNaN(userId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid userId'
+            });
+        }
+
+        let image = null;
+        if (req.file && req.file.path) {
+            image = req.file.path.replace(/\\/g, '/');
+        }
+
+        // IMPORTANT: table name is `customers` (plural)
+        const userSql = `
+            INSERT INTO customers
+                (fname, lname, addressline, zipcode, phone, town, image_path, user_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                fname = VALUES(fname),
+                lname = VALUES(lname),
+                addressline = VALUES(addressline),
+                zipcode = VALUES(zipcode),
+                phone = VALUES(phone),
+                town = VALUES(town),
+                image_path = COALESCE(VALUES(image_path), image_path)
+        `;
+
+        const params = [
+            fname || '',
+            lname || '',
+            addressline || '',
+            zipcode || '',
+            phone || '',
+            town || '',
+            image,
+            userId
+        ];
+
+        connection.execute(userSql, params, (err, result) => {
+            if (err) {
+                console.log('PROFILE UPDATE ERROR:', err);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Profile update failed',
+                    error: err.message,
+                    code: err.code
                 });
             }
 
             return res.status(200).json({
                 success: true,
-                message: 'profile updated',
+                message: 'Profile updated successfully',
                 result
-            })
+            });
         });
     } catch (error) {
-        console.log(error)
+        console.log(error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
     }
-
 };
 
 const deactivateUser = (req, res) => {
     const { email } = req.body;
     if (!email) {
-        return res.status(400).json({ error: 'Email is required' });
+        return res.status(400).json({ success: false, error: 'Email is required' });
     }
 
     const sql = 'UPDATE users SET deleted_at = ? WHERE email = ?';
@@ -127,10 +161,10 @@ const deactivateUser = (req, res) => {
     connection.execute(sql, [timestamp, email], (err, result) => {
         if (err) {
             console.log(err);
-            return res.status(500).json({ error: 'Error deactivating user', details: err });
+            return res.status(500).json({ success: false, error: 'Error deactivating user', details: err.message });
         }
         if (result.affectedRows === 0) {
-            return res.status(404).json({ error: 'User not found' });
+            return res.status(404).json({ success: false, error: 'User not found' });
         }
         return res.status(200).json({
             success: true,

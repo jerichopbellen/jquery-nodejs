@@ -1,46 +1,36 @@
 $(document).ready(function () {
-    const url = 'http://localhost:5000/'
+    const url = 'http://localhost:5000/';
 
     $("#register").on('click', function (e) {
         e.preventDefault();
-        let name = $("#name").val()
-        let email = $("#email").val()
-        let password = $("#password").val()
-        let user = {
-            name,
-            email,
-            password
-        }
+        const name = $("#name").val();
+        const email = $("#email").val();
+        const password = $("#password").val();
+
         $.ajax({
             method: "POST",
             url: `${url}api/v1/register`,
-            data: JSON.stringify(user),
+            data: JSON.stringify({ name, email, password }),
             processData: false,
             contentType: 'application/json; charset=utf-8',
             dataType: "json",
             success: function (data) {
                 console.log(data);
-                Swal.fire({
-                    icon: "success",
-                    text: "register success",
-                    position: 'bottom-right'
-
-                });
+                Swal.fire({ icon: "success", text: "register success", position: 'bottom-right' });
             },
             error: function (error) {
                 console.log(error);
+                Swal.fire({ icon: "error", text: error.responseJSON?.message || "register failed" });
             }
         });
     });
 
     $('#avatar').on('change', function () {
         const file = this.files[0];
-        // console.log(this.files[0])
         if (file) {
             const reader = new FileReader();
             reader.onload = function (e) {
-                console.log(e.target.result)
-                $('#avatarPreview').attr('src', e.target.result);
+                $('#avatarPreview').attr('src', e.target.result).show();
             };
             reader.readAsDataURL(file);
         }
@@ -49,45 +39,41 @@ $(document).ready(function () {
     $("#login").on('click', function (e) {
         e.preventDefault();
 
-        let email = $("#email").val()
-        let password = $("#password").val()
-        let user = {
-            email,
-            password
-        }
+        const email = $("#email").val();
+        const password = $("#password").val();
+
         $.ajax({
             method: "POST",
             url: `${url}api/v1/login`,
-            data: JSON.stringify(user),
+            data: JSON.stringify({ email, password }),
             processData: false,
             contentType: 'application/json; charset=utf-8',
             dataType: "json",
             success: function (data) {
                 console.log(data);
                 Swal.fire({
-                    text: data.success,
+                    text: data.message || "welcome back",
                     showConfirmButton: false,
                     position: 'bottom-right',
                     timer: 1000,
                     timerProgressBar: true
-
                 });
-                // sessionStorage.setItem('token', JSON.stringify(data.access_token))
-                sessionStorage.setItem('token', JSON.stringify(data.token))
-                sessionStorage.setItem('userId', JSON.stringify(data.user.id))
 
-                window.location.href = 'profile.html'
+                sessionStorage.setItem('token', data.token);
+                sessionStorage.setItem('userId', String(data.user.id));
+                sessionStorage.setItem('email', data.user.email);
+
+                window.location.href = 'profile.html';
             },
             error: function (error) {
                 console.log(error);
                 Swal.fire({
                     icon: "error",
-                    text: error.responseJSON.message,
+                    text: error.responseJSON?.message || "login failed",
                     showConfirmButton: false,
                     position: 'bottom-right',
                     timer: 1000,
                     timerProgressBar: true
-
                 });
             }
         });
@@ -95,12 +81,18 @@ $(document).ready(function () {
 
     $("#updateBtn").on('click', function (event) {
         event.preventDefault();
-        userId = sessionStorage.getItem('userId') ?? sessionStorage.getItem('userId')
 
-        var data = $('#profileForm')[0];
+        const rawUserId = sessionStorage.getItem('userId');
+        const userId = rawUserId ? Number(rawUserId) : null;
 
-        let formData = new FormData(data);
-        formData.append('userId', userId)
+        if (!userId) {
+            Swal.fire({ icon: "error", text: "Please login first" });
+            return;
+        }
+
+        const form = $('#profileForm')[0];
+        const formData = new FormData(form);
+        formData.set('userId', userId);
 
         $.ajax({
             method: "POST",
@@ -111,23 +103,32 @@ $(document).ready(function () {
             dataType: "json",
             success: function (data) {
                 console.log(data);
+                Swal.fire({
+                    icon: "success",
+                    text: data.message || "profile updated",
+                    showConfirmButton: false,
+                    position: 'bottom-right',
+                    timer: 1200
+                });
             },
             error: function (error) {
                 console.log(error);
+                Swal.fire({
+                    icon: "error",
+                    text: error.responseJSON?.message || error.responseJSON?.error || "profile update failed"
+                });
             }
         });
     });
 
     $("#deactivateBtn").on('click', function (e) {
         e.preventDefault();
-        let email = $("#email").val()
-        let user = {
-            email,
-        }
+        const email = sessionStorage.getItem('email') || $("#email").val();
+
         $.ajax({
             method: "DELETE",
             url: `${url}api/v1/deactivate`,
-            data: JSON.stringify(user),
+            data: JSON.stringify({ email }),
             processData: false,
             contentType: 'application/json; charset=utf-8',
             dataType: "json",
@@ -140,27 +141,21 @@ $(document).ready(function () {
                     timer: 2000,
                     timerProgressBar: true
                 });
-                sessionStorage.removeItem('userId')
-                // window.location.href = 'home.html'
+                sessionStorage.removeItem('userId');
+                sessionStorage.removeItem('token');
+                sessionStorage.removeItem('email');
             },
             error: function (error) {
                 console.log(error);
+                Swal.fire({ icon: "error", text: error.responseJSON?.message || "deactivate failed" });
             }
         });
     });
-    
-    $("#home").load("header.html", function() {
-        // This inner block runs automatically the exact millisecond header.html finishes rendering!
-        let cart = getCart();
-        
-        // 🛠️ CHANGED HERE: Calculate using array length instead of looping through quantities
+
+    $("#home").load("header.html", function () {
+        let cart = typeof getCart === "function" ? getCart() : [];
         let totalItems = cart.length;
-        
-        if (totalItems > 0) {
-            // Push that unique total to the badge and force it to show up
-            $('#itemCount').text(totalItems).show();
-        } else {
-            $('#itemCount').hide();
-        }
+        if (totalItems > 0) $('#itemCount').text(totalItems).show();
+        else $('#itemCount').hide();
     });
-})
+});
