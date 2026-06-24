@@ -1,139 +1,78 @@
 $(document).ready(function () {
-    const url = 'http://localhost:5000/'
-    function getCart() {
-        let cart = localStorage.getItem('cart');
-        return cart ? JSON.parse(cart) : [];
+  const url = 'http://localhost:5000/';
+
+  const getCart = () => JSON.parse(localStorage.getItem('cart') || '[]');
+  const saveCart = (cart) => localStorage.setItem('cart', JSON.stringify(cart));
+  const getToken = () => sessionStorage.getItem('token');
+
+  function renderCart() {
+    const cart = getCart();
+    let html = '';
+    let total = 0;
+
+    if (!cart.length) {
+      html = '<p>Your cart is empty.</p>';
+    } else {
+      html = `<table class="table table-bordered"><thead><tr><th>Image</th><th>Description</th><th>Price</th><th>Qty</th><th>Subtotal</th><th>Remove</th></tr></thead><tbody>`;
+      cart.forEach((item, idx) => {
+        const subtotal = item.price * item.quantity;
+        total += subtotal;
+        html += `<tr>
+          <td><img src="${item.image}" width="60"></td>
+          <td>${item.description}</td>
+          <td>₱ ${item.price.toFixed(2)}</td>
+          <td>${item.quantity}</td>
+          <td>₱ ${subtotal.toFixed(2)}</td>
+          <td><button class="btn btn-danger btn-sm remove-item" data-idx="${idx}">&times;</button></td>
+        </tr>`;
+      });
+      html += `</tbody></table><h4>Total: ₱ ${total.toFixed(2)}</h4>`;
     }
 
-    function saveCart(cart) {
-        localStorage.setItem('cart', JSON.stringify(cart));
+    $('#cartTable').html(html);
+  }
+
+  $('#cartTable').on('click', '.remove-item', function () {
+    const idx = $(this).data('idx');
+    const cart = getCart();
+    cart.splice(idx, 1);
+    saveCart(cart);
+    renderCart();
+  });
+
+  $("#header").load("header.html", function () {
+    const cart = getCart();
+    $('#itemCount').text(cart.length);
+    cart.length ? $('#itemCount').show() : $('#itemCount').hide();
+  });
+
+  $('#checkoutBtn').on('click', function () {
+    const token = getToken();
+    const cart = getCart();
+
+    if (!token) {
+      return Swal.fire({ icon: 'warning', text: 'Please login first' }).then(() => (window.location.href = 'login.html'));
     }
+    if (!cart.length) return Swal.fire({ icon: 'warning', text: 'Cart is empty' });
 
-    function renderCart() {
-        let cart = getCart();
-        let html = '';
-        let total = 0;
-        if (cart.length === 0) {
-            html = '<p>Your cart is empty.</p>';
-        } else {
-            html = `<table class="table table-bordered">
-                <thead>
-                    <tr>
-                        <th>Image</th>
-                        <th>Description</th>
-                        <th>Price</th>
-                        <th>Qty</th>
-                        <th>Subtotal</th>
-                        <th>Remove</th>
-                    </tr>
-                </thead>
-                <tbody>`;
-            cart.forEach((item, idx) => {
-                let subtotal = item.price * item.quantity;
-                total += subtotal;
-                html += `<tr>
-                    <td><img src="${item.image}" width="60"></td>
-                    <td>${item.description}</td>
-                    <td>₱ ${item.price.toFixed(2)}</td>
-                    <td>${item.quantity}</td>
-                    <td>₱ ${(subtotal).toFixed(2)}</td>
-                    <td><button class="btn btn-danger btn-sm remove-item" data-idx="${idx}">&times;</button></td>
-                </tr>`;
-            });
-            html += `</tbody></table>
-                <h4>Total: ₱ ${total.toFixed(2)}</h4>`;
-        }
-
-        $('#cartTable').html(html);
-    }
-
-    // function getUserId() {
-    //     let userId = sessionStorage.getItem('userId');
-
-    //     return userId ?? '';
-    // }
-
-    const getToken = () => {
-        const token = sessionStorage.getItem('token');
-        console.log(token)
-        if (!token) {
-            Swal.fire({
-                icon: 'warning',
-                text: 'You must be logged in to access this page.',
-                showConfirmButton: true
-            }).then(() => {
-                window.location.href = 'login.html';
-            });
-            return;
-        }
-        return JSON.parse(token)
-    }
-
-    $('#cartTable').on('click', '.remove-item', function () {
-        let idx = $(this).data('idx');
-        let cart = getCart();
-        cart.splice(idx, 1);
-        saveCart(cart);
+    $.ajax({
+      type: 'POST',
+      url: `${url}api/v1/create-order`,
+      data: JSON.stringify({ cart }),
+      dataType: 'json',
+      processData: false,
+      contentType: 'application/json; charset=utf-8',
+      headers: { Authorization: `Bearer ${token}` },
+      success: function (data) {
+        Swal.fire({ icon: 'success', text: data.message || 'Checkout success' });
+        localStorage.removeItem('cart');
         renderCart();
+      },
+      error: function (error) {
+        Swal.fire({ icon: 'error', text: error.responseJSON?.message || 'Checkout failed' });
+      }
     });
+  });
 
-    $("#header").load("header.html", function() {
-        // This inner block runs automatically the exact millisecond header.html finishes rendering!
-        let cart = getCart();
-        
-        // 🛠️ CHANGED HERE: Calculate using array length instead of looping through quantities
-        let totalItems = cart.length;
-        
-        if (totalItems > 0) {
-            // Push that unique total to the badge and force it to show up
-            $('#itemCount').text(totalItems).show();
-        } else {
-            $('#itemCount').hide();
-        }
-    });
-
-    $('#checkoutBtn').on('click', function () {
-
-        itemCount = 0;
-        priceTotal = 0;
-        let cart = getCart()
-        // let userId = getUserId()
-
-        // console.log(JSON.stringify(cart));
-
-        const payload = JSON.stringify(cart);
-        console.log(getToken())
-        if (getToken()) {
-            $.ajax({
-                type: "POST",
-                url: `${url}api/v1/items/checkout`,
-                data: payload,
-                dataType: "json",
-                processData: false,
-                contentType: 'application/json; charset=utf-8',
-                headers: {
-                    "Authorization": "Bearer " + getToken()
-                },
-                success: function (data) {
-                    console.log(data);
-                    // alert(data.status);
-                    Swal.fire({
-                        icon: "success",
-                        text: data.status,
-                    });
-                    localStorage.removeItem('cart')
-                    renderCart();
-                },
-                error: function (error) {
-                    console.log(error);
-                }
-            });
-
-        }
-
-
-    });
-
-    renderCart()
-
-})
+  renderCart();
+});

@@ -1,26 +1,21 @@
-const jwt = require("jsonwebtoken")
+const jwt = require('jsonwebtoken');
 
 exports.isAuthenticatedUser = (req, res, next) => {
-
-    // console.log(req.headers)
-
-    if (!req.header('Authorization')) {
-        return res.status(401).json({ message: 'Login first to access this resource' })
+  try {
+    const authHeader = req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, message: 'Login first to access this resource' });
     }
 
-    const token = req.header('Authorization').split(' ')[1];
-    // console.log(token)
-
-
+    const token = authHeader.split(' ')[1];
     if (!token) {
-        return res.status(401).json({ message: 'Login first to access this resource' })
+      return res.status(401).json({ success: false, message: 'Login first to access this resource' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET)
-    // console.log(decoded.id)
-    // req.body.user = { id: decoded.id }
-    // console.log(req.body)
-
-    next()
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = { id: decoded.id };
+    next();
+  } catch (error) {
+    return res.status(401).json({ success: false, message: 'Invalid or expired token' });
+  }
 };
-
