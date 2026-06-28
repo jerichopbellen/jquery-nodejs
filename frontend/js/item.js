@@ -1,9 +1,9 @@
 $(document).ready(function () {
-    const url = 'http://localhost:5000/'
+    const url = 'http://localhost:5000'; // Target your Express server base URL
 
+    // Secure authentication extraction utility
     const getToken = () => {
         const token = sessionStorage.getItem('token');
-
         if (!token) {
             Swal.fire({
                 icon: 'warning',
@@ -12,18 +12,19 @@ $(document).ready(function () {
             }).then(() => {
                 window.location.href = 'login.html';
             });
-            return;
+            return null;
         }
-        return JSON.parse(token)
-    }
+        return JSON.parse(token); // Matches your session parser format
+    };
 
-    $('#itable').DataTable({
+    // 1. Initialize Interactive Inventory Grid
+    const table = $('#itable').DataTable({
         ajax: {
             url: `${url}/api/v1/items`,
-            dataSrc: 'rows',
+            dataSrc: 'rows', // Processes our backend's flattened rows package
             headers: {
                 "Authorization": "Bearer " + getToken()
-            },
+            }
         },
         dom: 'Bfrtip',
         buttons: [
@@ -36,7 +37,8 @@ $(document).ready(function () {
                     $("#iform").trigger("reset");
                     $('#itemModal').modal('show');
                     $('#itemUpdate').hide();
-                    $('#itemImage').remove()
+                    $('#itemSubmit').show();
+                    $('#itemImagePreview').remove(); // Clears trailing image layouts
                 }
             }
         ],
@@ -45,127 +47,87 @@ $(document).ready(function () {
             {
                 data: null,
                 render: function (data, type, row) {
-                    return `<img src="${url}/${data.img_path}" width="50" height="60">`;
+                    // Serves static image folder streams seamlessly
+                    return `<img src="${url}/${data.img_path}" width="50" height="60" class="img-thumbnail">`;
                 }
             },
-
             { data: 'description' },
-            { data: 'cost_price' },
-            { data: 'sell_price' },
-            // { data: 'stock.quantity' },
-            { data: 'quantity' },
-            {
-                data: null,
-                render: function (data, type, row) {
-                    return "<a href='#' class = 'editBtn' id='editbtn' data-id=" + data.item_id + "><i class='fas fa-edit' aria-hidden='true' style='font-size:24px' ></i></a><a href='#'  class='deletebtn' data-id=" + data.item_id + "><i  class='fas fa-trash-alt' style='font-size:24px; color:red' ></a></i>";
-                }
-            }
-        ],
+            { 
+                data: 'sell_price',
+                render: function(data) { return `₱ ${parseFloat(data).toFixed(2)}`; }
+            },
+            { 
+                data: 'cost_price',
+                render: function(data) { return `₱ ${parseFloat(data).toFixed(2)}`; }
+            },
+            { data: 'quantity' } // Reads the flattened separate stock properties cleanly!
+        ]
     });
 
-    $("#itemSubmit").on('click', function (e) {
+    // 2. Submit New Item Form Routine
+    $('#itemSubmit').on('click', function (e) {
         e.preventDefault();
-        var data = $('#iform')[0];
-        console.log(data);
-        // if (getToken()) {
-        let formData = new FormData(data);
-        console.log(formData);
-        for (var pair of formData.entries()) {
-            console.log(pair[0] + ', ' + pair[1]);
-        }
-        const token = getToken()
+        
+        // Form boundary collector handling raw text parameters and photo binary payloads
+        const formData = new FormData($('#iform')[0]);
 
         $.ajax({
             method: "POST",
             url: `${url}/api/v1/items`,
             data: formData,
-            contentType: false,
-            processData: false,
-            dataType: "json",
+            processData: false, // Prevents jQuery from converting object profiles into query strings
+            contentType: false, // Enforces boundary strings for multipart transmission
             headers: {
-                "Authorization": "Bearer " + token
+                "Authorization": "Bearer " + getToken()
             },
             success: function (data) {
-                console.log(data);
-                $("#itemModal").modal("hide");
-                var $itable = $('#itable').DataTable();
-                $itable.ajax.reload()
+                if (data.success) {
+                    $('#itemModal').modal('hide');
+                    table.ajax.reload(); // Instantly refreshes list row indicators
+                    Swal.fire({ icon: 'success', text: 'Gadget catalog row established!' });
+                }
             },
             error: function (error) {
-                Swal.fire({
-                    icon: "error",
-                    text: error.responseText,
-                    showConfirmButton: false,
-                    // position: 'bottom-right',
-                    timer: 3000,
-                    timerProgressBar: true
-
-                });
-                console.log(error);
+                Swal.fire({ icon: 'error', text: error.responseJSON?.message || 'Save operation failed.' });
             }
         });
-
-        // }
-
     });
 
-    $('#itable tbody').on('click', 'a.editBtn', function (e) {
-        e.preventDefault();
-        $('#itemImage').remove()
-        $('#itemId').remove()
-        $("#iform").trigger("reset");
-        var id = $(this).data('id');
-        console.log(id);
+    // 3. Edit Trigger: Populate Existing Values onto Modal inputs
+    $('#itable tbody').on('click', 'tr', function () {
+        const data = table.row(this).data();
+        if (!data) return;
+
         $('#itemModal').modal('show');
-        $('<input>').attr({ type: 'hidden', id: 'itemId', name: 'item_id', value: id }).appendTo('#iform');
+        $('#itemSubmit').hide();
+        $('#itemUpdate').show().data('id', data.item_id); // Securely pins index reference tracking
 
-        $('#itemSubmit').hide()
-        $('#itemUpdate').show()
-
-        $.ajax({
-            method: "GET",
-            url: `${url}/api/v1/items/${id}`,
-            dataType: "json",
-            success: function (data) {
-                const { description, item_id, stock, cost_price, sell_price, quantity } = data.result[0]
-
-                console.log(data.result[0]);
-                $('#desc').val(description)
-                $('#sell').val(sell_price)
-                $('#cost').val(cost_price)
-                $('#qty').val(quantity)
-                $("#iform").append(`<img src="${url}/${data.img_path}" width='200px', height='200px' id="itemImage"   />`)
-
-            },
-            error: function (error) {
-                console.log(error);
-            }
-        });
+        // Map straight to your modal inputs
+        $('#desc').val(data.description);
+        $('#sell').val(data.sell_price);
+        $('#cost').val(data.cost_price);
+        $('#qty').val(data.quantity); // Matches your stock parameters cleanly
     });
 
-    $("#itemUpdate").on('click', function (e) {
+    // 4. Submit Update Changes
+    $('#itemUpdate').on('click', function (e) {
         e.preventDefault();
-        var id = $('#itemId').val();
-        console.log(id);
-        var table = $('#itable').DataTable();
+        const id = $(this).data('id');
+        const formData = new FormData($('#iform')[0]);
 
-        var data = $('#iform')[0];
-        let formData = new FormData(data);
-        // formData.append("_method", "PUT")
         $.ajax({
-            // method: "POST",
             method: "PUT",
             url: `${url}/api/v1/items/${id}`,
             data: formData,
-            contentType: false,
             processData: false,
-
-            dataType: "json",
+            contentType: false,
+            headers: {
+                "Authorization": "Bearer " + getToken()
+            },
             success: function (data) {
-                console.log(data);
-                $('#itemModal').modal("hide");
-                table.ajax.reload()
-
+                $('#itemModal').modal('hide');
+                table.ajax.reload();
+                Swal.fire({ icon: 'success', text: 'Catalog spec updates saved successfully!' });
             },
             error: function (error) {
                 console.log(error);
@@ -173,56 +135,31 @@ $(document).ready(function () {
         });
     });
 
-    $('#itable tbody').on('click', 'a.deletebtn', function (e) {
-        e.preventDefault();
-        var table = $('#itable').DataTable();
-        var id = $(this).data('id');
-        var $row = $(this).closest('tr');
-        console.log(id);
-        if (getToken()) {
-            bootbox.confirm({
-                message: "do you want to delete this item",
-                buttons: {
-                    confirm: {
-                        label: 'yes',
-                        className: 'btn-success'
-                    },
-                    cancel: {
-                        label: 'no',
-                        className: 'btn-danger'
-                    }
-                },
-                callback: function (result) {
-                    console.log(result);
-                    if (result) {
-                        $.ajax({
-                            method: "DELETE",
-                            url: `${url}/api/v1/items/${id}`,
-                            dataType: "json",
-                            contentType: 'application/json; charset=utf-8',
-                            headers: {
-                                "Authorization": "Bearer " + getToken()
-                            },
-                            success: function (data) {
-                                console.log(data);
-                                $row.fadeOut(4000, function () {
-                                    table.row($row).remove().draw();
-                                });
+    // 5. Delete Entry Block
+    $('#itable').on('click', '.btn-danger', function (e) {
+        e.stopPropagation(); // Prevents launching edit popup modals on click trigger
+        const $row = $(this).closest('tr');
+        const data = table.row($row).data();
 
-                                bootbox.alert(data.success);
-                            },
-                            error: function (error) {
-                                console.log(error);
-                            }
-                        });
-
-                    }
-
+        bootbox.confirm({
+            message: "Are you sure you want to completely remove this gadget record and wipe out its matching warehouse stock count?",
+            buttons: {
+                confirm: { label: 'Yes', className: 'btn-success' },
+                cancel: { label: 'No', className: 'btn-danger' }
+            },
+            callback: function (result) {
+                if (result) {
+                    $.ajax({
+                        method: "DELETE",
+                        url: `${url}/api/v1/items/${data.item_id}`,
+                        headers: { "Authorization": "Bearer " + getToken() },
+                        success: function (response) {
+                            $row.fadeOut(1000, function () { table.row($row).remove().draw(); });
+                            Swal.fire({ icon: 'success', text: 'Record deleted.' });
+                        }
+                    });
                 }
-            });
-
-        }
-
-    })
-    
-})
+            }
+        });
+    });
+});

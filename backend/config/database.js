@@ -1,13 +1,26 @@
-const mysql = require('mysql2');
-
-
+const { Sequelize } = require('sequelize');
 require('dotenv').config();
-// console.log(process.env.DB_HOST)
-const connection = mysql.createConnection({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME
-});
 
-module.exports = connection;
+// Enforce strict reliance on environmental variables
+const sequelize = new Sequelize(
+  process.env.DB_NAME,      // Must read directly from .env
+  process.env.DB_USER,      // Must read directly from .env
+  process.env.DB_PASSWORD,  // Must read directly from .env
+  {
+    host: process.env.DB_HOST, // Must read directly from .env
+    dialect: 'mysql',
+    logging: false, 
+    pool: {
+      max: 5,
+      min: 0,
+      acquire: 30000,
+      idle: 10000
+    },
+    define: {
+      timestamps: true, 
+      underscored: true 
+    }
+  }
+);
+
+module.exports = sequelize;

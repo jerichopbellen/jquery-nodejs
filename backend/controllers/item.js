@@ -1,152 +1,111 @@
-const connection = require('../config/database');
+const { Item, Stock } = require('../models');
 
-exports.getAllItems = (req, res) => {
-    const sql = 'SELECT * FROM item i INNER JOIN stock s ON i.item_id = s.item_id';
+// Matches your route names exactly
+const getAllItems = async (req, res) => {
+  try {
+    const items = await Item.findAll({
+      include: [{ model: Stock, as: 'Stock', attributes: ['quantity'] }]
+    });
 
-    try {
-        connection.query(sql, (err, rows, fields) => {
-            if (err instanceof Error) {
-                console.log(err);
-                return;
-            }
+    const formattedRows = items.map(item => {
+      const plainItem = item.toJSON();
+      return {
+        ...plainItem,
+        quantity: plainItem.Stock ? plainItem.Stock.quantity : 0
+      };
+    });
 
-            // console.log(rows);
-            // console.log(fields);
-            return res.status(200).json({
-                rows,
-            })
-        });
-    } catch (error) {
-        console.log(error)
-    }
+    res.status(200).json({ rows: formattedRows });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
 };
 
-exports.getSingleItem = (req, res,) => {
-    const sql = 'SELECT * FROM item i INNER JOIN stock s ON i.item_id = s.item_id  WHERE i.item_id = ?'
-    console.log(req.params)
-    const values = [parseInt(req.params.id)];
-    try {
-        connection.execute(sql, values, (err, result, fields) => {
-            if (err instanceof Error) {
-                console.log(err);
-                return;
-            }
-
-            return res.status(200).json({
-                success: true,
-                result
-            })
-        });
-    } catch (error) {
-        console.log(error)
-    }
-}
-
-exports.createItem = (req, res, next) => {
-
-    console.log(req.body, req.file)
-    // const item = req.body
-    const image = req.file
-    // console.log(item, image)
-    const { description, cost_price, sell_price, quantity } = req.body;
-    if (req.file) {
-        imagePath = req.file.path.replace(/\\/g, "/");
-    }
-
-    if (!description || !cost_price || !sell_price) {
-        return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    const sql = 'INSERT INTO item (description, cost_price, sell_price, img_path) VALUES (?, ?, ?, ?)';
-    const values = [description, cost_price, sell_price, imagePath];
-
-    connection.execute(sql, values, (err, result) => {
-        if (err) {
-            console.log(err);
-            return res.status(500).json({ error: 'Error inserting item', details: err });
-        }
-
-        const itemId = result.insertId
-        console.log('item id', itemId)
-
-        const stockSql = 'INSERT INTO stock (item_id, quantity) VALUES (?, ?)';
-        const stockValues = [itemId, quantity];
-
-        connection.execute(stockSql, stockValues, (err, result) => {
-            if (err) {
-                console.log(err);
-                return res.status(500).json({ error: 'Error inserting item', details: err });
-            }
-
-            return res.status(201).json({
-                success: true,
-                itemId: result.insertId,
-                image: imagePath,
-                quantity,
-                result
-            });
-        });
+const getSingleItem = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const item = await Item.findByPk(id, {
+      include: [{ model: Stock, as: 'Stock', attributes: ['quantity'] }]
     });
-}
 
-exports.updateItem = (req, res, next) => {
+    if (!item) return res.status(404).json({ success: false, message: "Item not found" });
 
-    console.log(req.file)
-    const item = req.body
-    const image = req.file
-    const id = req.params.id
+    const plainItem = item.toJSON();
+    const formattedResult = [{
+      ...plainItem,
+      quantity: plainItem.Stock ? plainItem.Stock.quantity : 0
+    }];
 
-    const { description, cost_price, sell_price, quantity } = req.body;
-    if (req.file) {
-        imagePath = req.file.path.replace(/\\/g, "/");
+    res.status(200).json({ result: formattedResult, img_path: plainItem.img_path });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+};
+
+const createItem = async (req, res) => {
+  try {
+    const { description, brand, category, cost_price, sell_price, quantity, specs } = req.body;
+    const img_path = req.file ? `uploads/${req.file.filename}` : 'uploads/default-gadget.png';
+
+    const newItem = await Item.create({
+      description, brand, category, cost_price, sell_price, img_path, specs: specs || null
+    });
+
+    await Stock.create({
+      item_id: newItem.item_id,
+      quantity: quantity ? Number(quantity) : 0
+    });
+
+    res.status(201).json({ success: true, message: "Gadget added successfully!", item_id: newItem.item_id });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+};
+
+const updateItem = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { description, brand, category, cost_price, sell_price, quantity, specs } = req.body;
+
+    const item = await Item.findByPk(id);
+    if (!item) return res.status(404).json({ success: false, message: "Gadget record not found" });
+
+    await item.update({
+      description, brand, category, cost_price, sell_price,
+      img_path: req.file ? `uploads/${req.file.filename}` : item.img_path,
+      specs: specs || item.specs
+    });
+
+    if (quantity !== undefined) {
+      await Stock.upsert({
+        item_id: id,
+        quantity: Number(quantity)
+      });
     }
 
-    if (!description || !cost_price || !sell_price) {
-        return res.status(400).json({ error: 'Missing required fields' });
-    }
+    res.status(200).json({ success: true, message: "Gadget updated successfully!" });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+};
 
-    const sql = 'UPDATE item SET description = ?, cost_price = ?, sell_price = ?, img_path = ? WHERE item_id = ?';
-    const values = [description, cost_price, sell_price, imagePath, id];
+const deleteItem = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const affectedRows = await Item.destroy({ where: { item_id: id } });
 
-    connection.execute(sql, values, (err, result) => {
-        if (err) {
-            console.log(err);
-            return res.status(500).json({ error: 'Error inserting item', details: err });
-        }
-    });
+    if (affectedRows === 0) return res.status(404).json({ success: false, message: "Product not found" });
+    res.status(200).json({ success: true, message: "Product removed from database inventory!" });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+};
 
-    const stockSql = 'UPDATE stock SET quantity = ? WHERE item_id = ?';
-    const stockValues = [quantity, id];
-
-    connection.execute(stockSql, stockValues, (err, result) => {
-        if (err) {
-            console.log(err);
-            return res.status(500).json({ error: 'Error updating item', details: err });
-        }
-
-    });
-
-    return res.status(201).json({
-        success: true,
-    });
-}
-
-exports.deleteItem = (req, res,) => {
-
-    const id = req.params.id
-    const sql = 'DELETE FROM item WHERE item_id = ?';
-    const values = [id];
-
-    connection.execute(sql, values, (err, result) => {
-        if (err) {
-            console.log(err);
-            return res.status(500).json({ error: 'Error deleting item', details: err });
-        }
-    });
-
-    return res.status(201).json({
-        success: true,
-        message: 'item deleted'
-    });
-}
-
+// Check this object export line carefully! It must contain these exact names.
+module.exports = {
+  getAllItems,
+  getSingleItem,
+  createItem,
+  updateItem,
+  deleteItem
+};
