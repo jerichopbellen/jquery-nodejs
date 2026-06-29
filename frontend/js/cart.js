@@ -78,21 +78,36 @@ $(document).ready(function () {
       return Swal.fire({ icon: 'warning', text: 'Cart is empty' });
     }
 
-    $.ajax({
-      type: 'POST',
-      url: `${url}api/v1/create-order`,
-      data: JSON.stringify({ cart }),
-      dataType: 'json',
-      processData: false,
-      contentType: 'application/json; charset=utf-8',
-      headers: { Authorization: `Bearer ${token}` },
-      success: function (data) {
-        Swal.fire({ icon: 'success', text: data.message || 'Checkout success' });
-        localStorage.removeItem('cart');
-        renderCart();
-      },
-      error: function (error) {
-        Swal.fire({ icon: 'error', text: error.responseJSON?.message || 'Checkout failed' });
+    Swal.fire({
+      title: 'Shipping Address',
+      input: 'text',
+      inputPlaceholder: 'Enter your delivery address...',
+      showCancelButton: true,
+      inputValidator: (value) => {
+        if (!value) {
+          return 'You must provide a shipping address!';
+        }
+      }
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const shipping_address = result.value;
+
+        $.ajax({
+          type: 'POST',
+          url: `${url}api/v1/create-order`,
+          data: JSON.stringify({ cart, shipping_address }),
+          dataType: 'json',
+          contentType: 'application/json; charset=utf-8',
+          headers: { Authorization: `Bearer ${token}` },
+          success: function (data) {
+            Swal.fire({ icon: 'success', text: data.message || 'Checkout success' });
+            localStorage.removeItem('cart');
+            renderCart();
+          },
+          error: function (error) {
+            Swal.fire({ icon: 'error', text: error.responseJSON?.message || 'Checkout failed' });
+          }
+        });
       }
     });
   });

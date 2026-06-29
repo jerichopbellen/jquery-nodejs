@@ -14,7 +14,7 @@ const Item = sequelize.define('Item', {
   brand: {
     type: DataTypes.STRING(50),
     allowNull: false,
-    defaultValue: 'Generic' // Fallback for basic form processing
+    defaultValue: 'Generic'
   },
   category: {
     type: DataTypes.STRING(50),
@@ -38,7 +38,9 @@ const Item = sequelize.define('Item', {
     allowNull: true
   }
 }, {
-  tableName: 'items'
+  tableName: 'items',
+  underscored: true, // Handles snake_case timestamps and helps with img_path alignment
+  timestamps: true
 });
 
 module.exports = Item;

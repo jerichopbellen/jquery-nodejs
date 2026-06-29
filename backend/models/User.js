@@ -32,7 +32,9 @@ const User = sequelize.define('User', {
     defaultValue: true
   }
 }, {
-  tableName: 'users'
+  tableName: 'users',
+  underscored: true, // Crucial for snake_case created_at and updated_at database columns
+  timestamps: true
 });
 
 module.exports = User;

@@ -18,7 +18,9 @@ const Stock = sequelize.define('Stock', {
     defaultValue: 0
   }
 }, {
-  tableName: 'stocks'
+  tableName: 'stocks',
+  underscored: true,
+  timestamps: true
 });
 
 module.exports = Stock;
