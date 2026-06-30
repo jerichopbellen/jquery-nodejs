@@ -45,18 +45,40 @@ const getSingleItem = async (req, res) => {
 const createItem = async (req, res) => {
   try {
     const { description, brand, category, cost_price, sell_price, quantity, specs } = req.body;
-    const img_path = req.file ? `uploads/${req.file.filename}` : 'uploads/default-gadget.png';
 
-    const newItem = await Item.create({
-      description, brand, category, cost_price, sell_price, img_path, specs: specs || null
+    // Optional validation check
+    if (!description || !cost_price || !sell_price) {
+      return res.status(400).json({ success: false, message: "Missing required product fields" });
+    }
+
+    // Safely parse JSON strings sent from the client form data
+    let parsedSpecs = null;
+    if (specs) {
+      try {
+        parsedSpecs = typeof specs === 'string' ? JSON.parse(specs) : specs;
+      } catch (err) {
+        parsedSpecs = { raw: specs };
+      }
+    }
+
+    // Build item using fallbacks so values aren't saved as explicit undefined
+    const item = await Item.create({
+      description,
+      brand: brand || 'Generic',
+      category: category || 'Smartphones',
+      cost_price,
+      sell_price,
+      img_path: req.file ? `images/${req.file.filename}` : 'images/default.png',
+      specs: parsedSpecs
     });
 
+    // Create the accompanying database record inside your stocks table
     await Stock.create({
-      item_id: newItem.item_id,
+      item_id: item.item_id,
       quantity: quantity ? Number(quantity) : 0
     });
 
-    res.status(201).json({ success: true, message: "Gadget added successfully!", item_id: newItem.item_id });
+    res.status(201).json({ success: true, message: "Gadget created successfully!", item });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
   }

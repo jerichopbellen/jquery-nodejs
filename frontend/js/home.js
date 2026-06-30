@@ -52,7 +52,7 @@ $(document).ready(function () {
 
           const stock = value.quantity ?? 0;
           const price = parseFloat(value.sell_price || 0).toFixed(2);
-          const image = `${url}${value.img_path}`;
+          const image = value.img_path ? `${url}${value.img_path}` : `${url}images/default-gadget.jpg`;
 
           row.append(`
             <div class="col-md-3 mb-4">

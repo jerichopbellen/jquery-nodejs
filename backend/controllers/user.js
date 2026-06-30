@@ -57,7 +57,7 @@ const loginUser = async (req, res) => {
 
     // Generate Token for Authentication (MP5 - 15pts)
     const token = jwt.sign(
-      { id: user.id || user.user_id, email: user.email }, 
+      { id: user.user_id, email: user.email }, 
       process.env.JWT_SECRET, 
       { expiresIn: '7d' }
     );
@@ -66,9 +66,10 @@ const loginUser = async (req, res) => {
       success: true,
       token,
       user: {
-        id: user.id || user.user_id,
+        id: user.user_id,
         name: user.name,
-        email: user.email
+        email: user.email,
+        role: user.role 
       }
     });
 
@@ -81,7 +82,7 @@ const loginUser = async (req, res) => {
 const updateUser = async (req, res) => {
   try {
     const { name, role, is_active } = req.body;
-    const userId = req.user?.id || req.user?.user_id;
+    const userId = req.user?.user_id || req.user?.id;
 
     if (!userId) {
       return res.status(401).json({ success: false, message: 'Unauthorized' });

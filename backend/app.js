@@ -18,4 +18,7 @@ app.use('/api/v1', users);
 app.use('/api/v1', orders);
 app.use('/api/v1', dashboard);
 
+const path = require('path');
+app.use('/images', express.static(path.join(__dirname, 'images')));
+
 module.exports = app

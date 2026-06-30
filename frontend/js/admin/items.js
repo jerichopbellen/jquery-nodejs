@@ -46,76 +46,105 @@ $(document).ready(function () {
       {
         data: null,
         render: function (data) {
-          return `<img src="${url}/${data.img_path}" width="50" height="60" class="img-thumbnail">`;
+          // Fallback placeholder image configuration if no path exists in DB
+          const imgSrc = data.img_path ? `${url}/${data.img_path}` : `${url}/images/default-gadget.jpg`;
+          return `<img src="${imgSrc}" width="50" height="60" class="img-thumbnail" alt="product">`;
         }
       },
       { data: 'description' },
-      {
-        data: 'sell_price',
-        render: function (data) {
-          return `₱ ${parseFloat(data).toFixed(2)}`;
-        }
-      },
+      { data: 'brand' },
+      { data: 'category' },
       {
         data: 'cost_price',
         render: function (data) {
-          return `₱ ${parseFloat(data).toFixed(2)}`;
+          return `₱${Number(data).toFixed(2)}`;
         }
       },
-      { data: 'quantity' },
+      {
+        data: 'sell_price',
+        render: function (data) {
+          return `₱${Number(data).toFixed(2)}`;
+        }
+      },
+      { 
+        data: 'quantity',
+        render: function (data) {
+          const qty = Number(data || 0);
+          if (qty <= 0) return `<span class="badge badge-danger">Out of Stock</span>`;
+          if (qty <= 5) return `<span class="badge badge-warning">${qty} (Low Stock)</span>`;
+          return `<span class="badge badge-success">${qty}</span>`;
+        }
+      },
+      {
+        data: 'specs',
+        render: function (data) {
+          if (!data) return `<i class="text-muted">None</i>`;
+          
+          // Handle cases where specs might arrive parsed as an object or as a raw JSON string
+          let obj = data;
+          if (typeof data === 'string') {
+            try { obj = JSON.parse(data); } catch(e) { return data; }
+          }
+          
+          // Loop through object keys to construct a clean, formatted readable badge setup
+          if (typeof obj === 'object' && obj !== null) {
+            let output = '';
+            for (const [key, val] of Object.entries(obj)) {
+              output += `<small class="d-block"><b>${key}:</b> ${val}</small>`;
+            }
+            return output;
+          }
+          return data;
+        }
+      },
       {
         data: null,
         orderable: false,
+        searchable: false,
         render: function () {
-          return `<button type="button" class="btn btn-danger btn-sm btn-delete">Delete</button>`;
+          return `
+            <button class="btn btn-warning btn-sm btn-edit"><i class="fas fa-edit"></i></button>
+            <button class="btn btn-danger btn-sm btn-delete"><i class="fas fa-trash"></i></button>
+          `;
         }
       }
     ]
+});
+
+$('#itemSubmit').on('click', function (e) {
+  e.preventDefault();
+
+  const formData = new FormData();
+  formData.append('description', $('#desc').val());
+  formData.append('brand', $('#brand').val() || 'Generic');
+  formData.append('category', $('#category').val() || 'Smartphones');
+  formData.append('sell_price', $('#sell').val());
+  formData.append('cost_price', $('#cost').val());
+  formData.append('quantity', $('#qty').val() || 0);
+  formData.append('specs', $('#specs').val() || '{}');
+
+  // Must match upload.single('image') inside your backend routing logic
+  if ($('#img')[0].files.length > 0) {
+    formData.append('image', $('#img')[0].files[0]);
+  }
+
+  $.ajax({
+    method: 'POST',
+    url: `${url}/api/v1/items`,
+    data: formData,
+    processData: false,
+    contentType: false,
+    headers: { Authorization: `Bearer ${token}` },
+    success: function () {
+      $('#itemModal').modal('hide');
+      table.ajax.reload(null, false);
+      Swal.fire({ icon: 'success', text: 'Item created successfully!' });
+    },
+    error: function (error) {
+      Swal.fire({ icon: 'error', text: error.responseJSON?.message || 'Creation failed.' });
+    }
   });
-
-  $('#itemSubmit').on('click', function (e) {
-    e.preventDefault();
-    const formData = new FormData($('#iform')[0]);
-
-    $.ajax({
-      method: 'POST',
-      url: `${url}/api/v1/items`,
-      data: formData,
-      processData: false,
-      contentType: false,
-      headers: {
-        Authorization: `Bearer ${token}`
-      },
-      success: function (data) {
-        if (data?.success) {
-          $('#itemModal').modal('hide');
-          table.ajax.reload(null, false);
-          Swal.fire({ icon: 'success', text: 'Item created successfully!' });
-        } else {
-          Swal.fire({ icon: 'error', text: data?.message || 'Create failed.' });
-        }
-      },
-      error: function (error) {
-        Swal.fire({ icon: 'error', text: error.responseJSON?.message || 'Save operation failed.' });
-      }
-    });
-  });
-
-  $('#itable tbody').on('click', 'tr', function (e) {
-    if ($(e.target).hasClass('btn-delete')) return;
-
-    const data = table.row(this).data();
-    if (!data) return;
-
-    $('#itemModal').modal('show');
-    $('#itemSubmit').hide();
-    $('#itemUpdate').show().data('id', data.item_id);
-
-    $('#desc').val(data.description);
-    $('#sell').val(data.sell_price);
-    $('#cost').val(data.cost_price);
-    $('#qty').val(data.quantity);
-  });
+});
 
   $('#itemUpdate').on('click', function (e) {
     e.preventDefault();
