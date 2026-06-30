@@ -37,9 +37,10 @@ $(document).ready(function () {
       cart.forEach((item, idx) => {
         const subtotal = Number(item.price) * Number(item.quantity);
         total += subtotal;
+        imagePath = item.img_path ? `${url}${item.img_path}` : `${url}images/default-gadget.jpg`;
         html += `
           <tr>
-            <td><img src="${item.image}" width="60" alt="${item.description}"></td>
+            <td><img src="${imagePath}" width="60" alt="${item.description}"></td>
             <td>${item.description}</td>
             <td>₱ ${Number(item.price).toFixed(2)}</td>
             <td>${item.quantity}</td>
