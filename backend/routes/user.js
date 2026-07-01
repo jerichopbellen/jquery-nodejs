@@ -6,8 +6,6 @@ const { registerUser,
     loginUser,
     updateUser,
     deactivateUser
-
-
 } = require('../controllers/user')
 
 router.post('/register', registerUser)

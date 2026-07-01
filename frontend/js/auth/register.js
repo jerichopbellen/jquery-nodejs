@@ -8,7 +8,7 @@ $(document).ready(function () {
     return;
   }
 
-  $('#register').on('click', function (e) {
+  $('#registerForm').on('submit', function (e) {
     e.preventDefault();
 
     const name = $('#name').val().trim();
