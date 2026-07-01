@@ -1,17 +1,18 @@
-const app = require('./app');
-const { sequelize } = require('./models'); // Imports central database synchronization engine
 require('dotenv').config();
+const app = require('./app');
+const { sequelize } = require('./models');
 
 const PORT = process.env.PORT || 3000;
 
-// Sync models to database before running the server listener
-sequelize.sync({ alter: true }) // 'alter: true' updates tables if you add columns later without wiping your data
+// Connect to DB, but DON'T auto-alter schema on every boot
+sequelize.authenticate()
   .then(() => {
-    console.log('📡 Database tables verified and synchronized successfully.');
+    console.log('📡 Database connection established successfully.');
     app.listen(PORT, () => {
-        console.log(`Server is running on port ${PORT}`);
+      console.log(`Server is running on port ${PORT}`);
     });
   })
   .catch((err) => {
-    console.error('❌ Unable to synchronize database tables:', err.message);
+    console.error('❌ Unable to connect to database:', err.message);
+    process.exit(1);
   });

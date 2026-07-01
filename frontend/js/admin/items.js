@@ -3,7 +3,6 @@ $(document).ready(function () {
   const token = sessionStorage.getItem('token');
   const role = sessionStorage.getItem('role');
 
-  // Simple admin guard
   if (!token) {
     Swal.fire({ icon: 'warning', text: 'Please login first.' }).then(() => {
       window.location.href = 'login.html';
@@ -18,41 +17,52 @@ $(document).ready(function () {
     return;
   }
 
-  // --- NEW: POPULATE LOOKUP DROPDOWNS ---
-  function loadDropdowns() {
-    // Load Brands
-    $.ajax({
+  function loadBrands() {
+    return $.ajax({
       method: 'GET',
-      url: `${url}/api/v1/brands`, // Ensure this endpoint exists in your router
+      url: `${url}/api/v1/brands`,
       headers: { Authorization: `Bearer ${token}` },
       success: function (data) {
+        const brands = Array.isArray(data) ? data : (data.rows || []);
         let options = '<option value="">Select Brand</option>';
-        data.rows.forEach(b => {
+        brands.forEach(b => {
           options += `<option value="${b.brand_id}">${b.name}</option>`;
         });
         $('#brand').html(options);
-      }
-    });
-
-    // Load Categories
-    $.ajax({
-      method: 'GET',
-      url: `${url}/api/v1/categories`, // Ensure this endpoint exists in your router
-      headers: { Authorization: `Bearer ${token}` },
-      success: function (data) {
-        let options = '<option value="">Select Category</option>';
-        data.rows.forEach(c => {
-          options += `<option value="${c.category_id}">${c.name}</option>`;
-        });
-        $('#category').html(options);
+      },
+      error: function (xhr) {
+        console.error('Brands fetch failed:', xhr.responseText);
+        $('#brand').html('<option value="">Select Brand</option>');
       }
     });
   }
 
-  // Call immediately on load
+  function loadCategories() {
+    return $.ajax({
+      method: 'GET',
+      url: `${url}/api/v1/categories`,
+      headers: { Authorization: `Bearer ${token}` },
+      success: function (data) {
+        const categories = Array.isArray(data) ? data : (data.rows || []);
+        let options = '<option value="">Select Category</option>';
+        categories.forEach(c => {
+          options += `<option value="${c.category_id}">${c.name}</option>`;
+        });
+        $('#category').html(options);
+      },
+      error: function (xhr) {
+        console.error('Categories fetch failed:', xhr.responseText);
+        $('#category').html('<option value="">Select Category</option>');
+      }
+    });
+  }
+
+  function loadDropdowns() {
+    return $.when(loadBrands(), loadCategories());
+  }
+
   loadDropdowns();
 
-  // DataTables Initialization
   const table = $('#itable').DataTable({
     ajax: {
       url: `${url}/api/v1/items`,
@@ -67,10 +77,14 @@ $(document).ready(function () {
         text: 'Add item',
         className: 'btn btn-primary',
         action: function () {
+          currentEditId = null;
           $('#iform').trigger('reset');
-          $('#itemModal').modal('show');
-          $('#itemUpdate').hide();
-          $('#itemSubmit').show();
+          loadDropdowns().always(() => {
+            $('#itemModal .modal-title').text('Create new item');
+            $('#itemUpdate').hide();
+            $('#itemSubmit').show();
+            $('#itemModal').modal('show');
+          });
         }
       }
     ],
@@ -84,16 +98,10 @@ $(document).ready(function () {
         }
       },
       { data: 'description' },
-      { data: 'brand' },    // Remains flat because backend formats plain property row mappings!
-      { data: 'category' }, // Remains flat because backend formats plain property row mappings!
-      {
-        data: 'cost_price',
-        render: function (data) { return `₱${Number(data).toFixed(2)}`; }
-      },
-      {
-        data: 'sell_price',
-        render: function (data) { return `₱${Number(data).toFixed(2)}`; }
-      },
+      { data: 'brand' },
+      { data: 'category' },
+      { data: 'cost_price', render: data => `₱${Number(data).toFixed(2)}` },
+      { data: 'sell_price', render: data => `₱${Number(data).toFixed(2)}` },
       { data: 'quantity' },
       {
         data: 'specs',
@@ -101,7 +109,7 @@ $(document).ready(function () {
           if (!data) return `<i class="text-muted">None</i>`;
           let obj = data;
           if (typeof data === 'string') {
-            try { obj = JSON.parse(data); } catch(e) { return data; }
+            try { obj = JSON.parse(data); } catch (e) { return data; }
           }
           if (typeof obj === 'object' && obj !== null) {
             let output = '';
@@ -127,14 +135,16 @@ $(document).ready(function () {
     ]
   });
 
-  // --- CREATE ITEM ACTION ---
-  $('#itemSubmit').on('click', function (e) {
+  let currentEditId = null;
+
+  // unified submit (Enter + Save/Update buttons)
+  $('#iform').on('submit', function (e) {
     e.preventDefault();
 
     const formData = new FormData();
     formData.append('description', $('#desc').val());
-    formData.append('brand_id', $('#brand').val());       // Correct key expected by backend
-    formData.append('category_id', $('#category').val()); // Correct key expected by backend
+    formData.append('brand_id', $('#brand').val());
+    formData.append('category_id', $('#category').val());
     formData.append('sell_price', $('#sell').val());
     formData.append('cost_price', $('#cost').val());
     formData.append('quantity', $('#qty').val());
@@ -144,9 +154,15 @@ $(document).ready(function () {
       formData.append('image', $('#img')[0].files[0]);
     }
 
+    const isUpdate = $('#itemUpdate').is(':visible') && currentEditId;
+    const method = isUpdate ? 'PUT' : 'POST';
+    const endpoint = isUpdate
+      ? `${url}/api/v1/items/${currentEditId}`
+      : `${url}/api/v1/items`;
+
     $.ajax({
-      method: 'POST',
-      url: `${url}/api/v1/items`,
+      method,
+      url: endpoint,
       data: formData,
       processData: false,
       contentType: false,
@@ -154,86 +170,39 @@ $(document).ready(function () {
       success: function () {
         $('#itemModal').modal('hide');
         table.ajax.reload(null, false);
-        Swal.fire({ icon: 'success', text: 'Item created successfully!' });
+        Swal.fire({ icon: 'success', text: isUpdate ? 'Item updated successfully!' : 'Item created successfully!' });
       },
       error: function (error) {
-        Swal.fire({ icon: 'error', text: error.responseJSON?.message || 'Creation failed.' });
+        Swal.fire({ icon: 'error', text: error.responseJSON?.message || (isUpdate ? 'Update failed.' : 'Creation failed.') });
       }
     });
   });
 
-  // --- EDIT ITEM MODAL BINDING ---
-  let currentEditId = null;
-
   $('#itable').on('click', '.btn-edit', function () {
-    const $row = $(this).closest('tr');
-    const data = table.row($row).data();
+    const data = table.row($(this).closest('tr')).data();
     if (!data) return;
 
     currentEditId = data.item_id;
-
     $('#desc').val(data.description);
     $('#sell').val(data.sell_price);
     $('#cost').val(data.cost_price);
     $('#qty').val(data.quantity);
-    
-    // Bind to the corresponding primary key IDs stored on the object row
-    $('#brand').val(data.brand_id || '');
-    $('#category').val(data.category_id || '');
 
-    // Format string format fallback for specs textarea view formatting
-    if (data.specs) {
-      $('#specs').val(typeof data.specs === 'object' ? JSON.stringify(data.specs) : data.specs);
-    } else {
-      $('#specs').val('{}');
-    }
+    loadDropdowns().always(() => {
+      $('#brand').val(data.brand_id || '');
+      $('#category').val(data.category_id || '');
+      $('#specs').val(data.specs ? (typeof data.specs === 'object' ? JSON.stringify(data.specs) : data.specs) : '{}');
 
-    $('#itemSubmit').hide();
-    $('#itemUpdate').show();
-    $('#itemModal').modal('show');
-  });
-
-  // --- UPDATE ITEM ACTION ---
-  $('#itemUpdate').on('click', function (e) {
-    e.preventDefault();
-    if (!currentEditId) return;
-
-    const formData = new FormData();
-    formData.append('description', $('#desc').val());
-    formData.append('brand_id', $('#brand').val());       // Correct key expected by backend
-    formData.append('category_id', $('#category').val()); // Correct key expected by backend
-    formData.append('sell_price', $('#sell').val());
-    formData.append('cost_price', $('#cost').val());
-    formData.append('quantity', $('#qty').val());
-    formData.append('specs', $('#specs').val() || '{}');
-
-    if ($('#img')[0].files.length > 0) {
-      formData.append('image', $('#img')[0].files[0]);
-    }
-
-    $.ajax({
-      method: 'PUT',
-      url: `${url}/api/v1/items/${currentEditId}`,
-      data: formData,
-      processData: false,
-      contentType: false,
-      headers: { Authorization: `Bearer ${token}` },
-      success: function () {
-        $('#itemModal').modal('hide');
-        table.ajax.reload(null, false);
-        Swal.fire({ icon: 'success', text: 'Item updated successfully!' });
-      },
-      error: function (error) {
-        Swal.fire({ icon: 'error', text: error.responseJSON?.message || 'Update failed.' });
-      }
+      $('#itemModal .modal-title').text('Update item');
+      $('#itemSubmit').hide();
+      $('#itemUpdate').show();
+      $('#itemModal').modal('show');
     });
   });
 
-  // --- DELETE ACTION ---
   $('#itable').on('click', '.btn-delete', function (e) {
     e.stopPropagation();
-    const $row = $(this).closest('tr');
-    const data = table.row($row).data();
+    const data = table.row($(this).closest('tr')).data();
     if (!data) return;
 
     bootbox.confirm({
@@ -253,11 +222,13 @@ $(document).ready(function () {
             table.ajax.reload(null, false);
             Swal.fire({ icon: 'success', text: 'Record deleted.' });
           },
-          error: function (error) {
+          error: function () {
             Swal.fire({ icon: 'error', text: 'Failed to delete record.' });
           }
         });
       }
     });
   });
+
+  $('#itemUpdate').hide();
 });

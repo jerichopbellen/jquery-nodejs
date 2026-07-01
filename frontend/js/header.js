@@ -46,9 +46,11 @@ $(document).ready(function () {
       adminControls = `
         <h6 class="dropdown-header">Admin Management</h6>
         <a class="dropdown-item" href="admin-dashboard.html"><b>Dashboard</b></a>
-        <a class="dropdown-item" href="admin-users.html">Manage Users</a>
         <a class="dropdown-item" href="admin-items.html">Manage Items</a>
+        <a class="dropdown-item" href="admin-brands.html">Manage Brands</a>
+        <a class="dropdown-item" href="admin-category.html">Manage Categories</a>
         <a class="dropdown-item" href="admin-orders.html">Manage Orders</a>
+        <a class="dropdown-item" href="admin-users.html">Manage Users</a>
         <div class="dropdown-divider"></div>
       `;
     }
