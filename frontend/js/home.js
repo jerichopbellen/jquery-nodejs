@@ -34,88 +34,167 @@ $(document).ready(function () {
     `);
   }
 
-  function loadItems() {
-    $.ajax({
-      method: 'GET',
-      url: `${url}api/v1/items`,
-      dataType: 'json',
-      success: function (data) {
-        $('#items').empty();
-        let row;
-        const rows = data?.rows || [];
+  renderCartBadge();
 
-        $.each(rows, function (key, value) {
-          if (key % 4 === 0) {
-            row = $('<div class="row"></div>');
-            $('#items').append(row);
-          }
+  // 1. Fetch and render items on the home page grid
+  $.ajax({
+    method: 'GET',
+    url: `${url}api/v1/items`,
+    dataType: 'json',
+    success: function (res) {
+      if (!res.success || !res.rows) return;
 
-          const stock = value.quantity ?? 0;
-          const price = parseFloat(value.sell_price || 0).toFixed(2);
-          const image = value.img_path ? `${url}${value.img_path}` : `${url}images/default-gadget.jpg`;
+      let html = '<div class="row">';
+      res.rows.forEach((item) => {
+        let imageArray = [];
+        try {
+          // Safe JSON extraction from the stringified column field
+          imageArray = typeof item.images === 'string' ? JSON.parse(item.images) : (item.images || []);
+        } catch (e) {
+          imageArray = [];
+        }
 
-          row.append(`
-            <div class="col-md-3 mb-4">
-              <div class="card h-100 shadow-sm">
-                <img src="${image}" class="card-img-top" alt="${value.description}" style="height:200px;object-fit:contain;padding:10px;">
-                <div class="card-body d-flex flex-column justify-content-between">
-                  <div>
-                    <h5 class="card-title text-truncate">${value.description}</h5>
-                    <p class="card-text text-primary font-weight-bold">₱ ${price}</p>
-                  </div>
-                  <div>
-                    <p class="card-text"><small class="text-muted">Stock available: ${stock}</small></p>
-                    <button
-                      class="btn btn-block btn-outline-primary show-details"
-                      data-id="${value.item_id}"
-                      data-description="${value.description}"
-                      data-price="${value.sell_price}"
-                      data-image="${image}"
-                      data-stock="${stock}"
-                    >
-                      View Options
-                    </button>
-                  </div>
-                </div>
+        // Pull the first entry as the primary display card thumbnail image
+        const primaryImg = (imageArray && imageArray.length > 0) ? imageArray[0] : 'images/default-gadget.jpg';
+        const itemImgSrc = `${url}${primaryImg}`;
+
+        html += `
+          <div class="col-md-4 mb-4">
+            <div class="card h-100 shadow-sm">
+              <img class="card-img-top p-3" src="${itemImgSrc}" alt="${item.description}" style="height: 200px; object-fit: contain;">
+              <div class="card-body d-flex flex-column">
+                <h5 class="card-title text-truncate">${item.description}</h5>
+                <p class="card-text text-muted mb-1"><small>Brand: ${item.brand} | Category: ${item.category}</small></p>
+                <h4 class="text-primary mt-auto">₱${Number(item.sell_price).toFixed(2)}</h4>
+                <button class="btn btn-outline-primary btn-block mt-3 btn-view-details" data-id="${item.item_id}">
+                  View Details
+                </button>
               </div>
             </div>
-          `);
-        });
-      },
-      error: function () {
-        Swal.fire({ icon: 'error', text: 'Failed to load items.' });
-      }
-    });
-  }
-
-  $('#items').on('click', '.show-details', function () {
-    const id = parseInt($(this).data('id'), 10);
-    const description = $(this).data('description');
-    const price = parseFloat($(this).data('price') || 0);
-    const image = $(this).data('image');
-    const stock = parseInt($(this).data('stock') || 0, 10);
-
-    $('#productDetailsModalLabel').text(description);
-    $('#productDetailsModalBody').html(`
-      <div class="text-center mb-3">
-        <img src="${image}" class="img-fluid" style="max-height:250px;object-fit:contain;">
-      </div>
-      <h4>Price: <span class="text-success">₱ ${price.toFixed(2)}</span></h4>
-      <p class="text-muted">Available Stock: <strong id="modalStockDisplay">${stock}</strong></p>
-      <input type="hidden" id="detailsItemId" value="${id}">
-      <input type="hidden" id="detailsItemPrice" value="${price}">
-      <div class="form-group row mt-3">
-        <label for="detailsQty" class="col-sm-4 col-form-label font-weight-bold">Quantity:</label>
-        <div class="col-sm-8">
-          <input type="number" id="detailsQty" class="form-control" value="1" min="1" max="${stock}" ${stock <= 0 ? 'disabled' : ''}>
-        </div>
-      </div>
-      ${stock <= 0 ? '<small class="text-danger">Out of stock</small>' : ''}
-    `);
-
-    $('#productDetailsModal').modal('show');
+          </div>
+        `;
+      });
+      html += '</div>';
+      $('#items').html(html);
+    },
+    error: function () {
+      $('#items').html('<p class="text-danger">Failed to load products.</p>');
+    }
   });
 
+  // 2. View details click handling matching dynamic image arrays
+  $(document).on('click', '.btn-view-details', function () {
+    const id = $(this).data('id');
+
+    $.ajax({
+      method: 'GET',
+      url: `${url}api/v1/items/${id}`,
+      dataType: 'json',
+      success: function (res) {
+        if (!res.success || !res.data) return;
+        const item = res.data;
+
+        ensureProductModal();
+
+        let imageArray = [];
+        try {
+          imageArray = typeof item.images === 'string' ? JSON.parse(item.images) : (item.images || []);
+        } catch (e) {
+          imageArray = [];
+        }
+
+        if (imageArray.length === 0) {
+          imageArray.push('images/default-gadget.jpg');
+        }
+
+        // Build out slide items inside a clean interactive responsive carousel
+        let carouselIndicators = '';
+        let carouselItems = '';
+
+        imageArray.forEach((img, index) => {
+          const isActive = index === 0 ? 'active' : '';
+          carouselIndicators += `
+            <li data-target="#itemImagesCarousel" data-slide-to="${index}" class="${isActive}"></li>
+          `;
+          carouselItems += `
+            <div class="carousel-item ${isActive}">
+              <img class="d-block w-100" src="${url}${img}" alt="Slide ${index}" style="height: 350px; object-fit: contain;">
+            </div>
+          `;
+        });
+
+        // Parse structured data specifications loop block mappings
+        let specsHtml = '';
+        let specsObj = item.specs;
+        if (typeof specsObj === 'string') {
+          try { specsObj = JSON.parse(specsObj); } catch (e) { specsObj = null; }
+        }
+
+        if (specsObj && typeof specsObj === 'object' && Object.keys(specsObj).length > 0) {
+          specsHtml += '<h6 class="mt-3">Specifications:</h6><ul>';
+          for (const [key, value] of Object.entries(specsObj)) {
+            specsHtml += `<li><strong>${key}:</strong> ${value}</li>`;
+          }
+          specsHtml += '</ul>';
+        }
+
+        const stock = item.quantity;
+
+        $('#productDetailsModalLabel').text(item.description);
+        $('#productDetailsModalBody').html(`
+          <input type="hidden" id="detailsItemId" value="${item.item_id}">
+          <input type="hidden" id="detailsItemPrice" value="${item.sell_price}">
+          
+          <div class="row">
+            <div class="col-md-6">
+              <div id="itemImagesCarousel" class="carousel slide border rounded bg-light" data-ride="carousel">
+                <ol class="carousel-indicators">
+                  ${carouselIndicators}
+                </ol>
+                <div class="carousel-inner">
+                  ${carouselItems}
+                </div>
+                ${imageArray.length > 1 ? `
+                  <a class="carousel-control-prev" href="#itemImagesCarousel" role="button" data-slide="prev">
+                    <span class="carousel-control-prev-icon" aria-hidden="true" style="filter: invert(100%);"></span>
+                    <span class="sr-only">Previous</span>
+                  </a>
+                  <a class="carousel-control-next" href="#itemImagesCarousel" role="button" data-slide="next">
+                    <span class="carousel-control-next-icon" aria-hidden="true" style="filter: invert(100%);"></span>
+                    <span class="sr-only">Next</span>
+                  </a>
+                ` : ''}
+              </div>
+            </div>
+            <div class="col-md-6">
+              <p class="text-muted mb-1">Brand: <strong>${item.brand}</strong></p>
+              <p class="text-muted mb-3">Category: <strong>${item.category}</strong></p>
+              <h3 class="text-primary mb-3">₱${Number(item.sell_price).toFixed(2)}</h3>
+              <p>Available Stock: <span id="modalStockDisplay" class="font-weight-bold">${stock}</span></p>
+              ${specsHtml}
+              
+              <div class="form-group mt-4" ${stock <= 0 ? 'style="display:none;"' : ''}>
+                <label for="detailsQty">Quantity:</label>
+                <input type="number" id="detailsQty" class="form-control" value="1" min="1" max="${stock}">
+              </div>
+              ${stock <= 0 ? '<div class="alert alert-danger p-2 text-center font-weight-bold mt-4">Out of Stock</div>' : ''}
+            </div>
+          </div>
+        `);
+
+        // Hide or enable checkout buttons depending on real-time count structures
+        if (stock <= 0) $('#confirmAddToCart').hide();
+        else $('#confirmAddToCart').show();
+
+        $('#productDetailsModal').modal('show');
+      },
+      error: function () {
+        Swal.fire({ icon: 'error', text: 'Could not fetch item specifications.' });
+      }
+    });
+  });
+
+  // 3. Confirm add item to cart layout processing logic updates
   $(document).on('click', '#confirmAddToCart', function () {
     const qty = parseInt($('#detailsQty').val() || '0', 10);
     const stock = parseInt($('#modalStockDisplay').text() || '0', 10);
@@ -126,7 +205,9 @@ $(document).ready(function () {
     const id = parseInt($('#detailsItemId').val(), 10);
     const description = $('#productDetailsModalLabel').text();
     const price = parseFloat($('#detailsItemPrice').val() || '0');
-    const image = $('#productDetailsModalBody img').attr('src') || '';
+    
+    // Fallback cleanly to the active slide's image path for shopping cart listing reference entries
+    const image = $('#productDetailsModalBody .carousel-item.active img').attr('src') || '';
 
     const cart = getCart();
     const existing = cart.find((x) => x.item_id === id);
@@ -143,10 +224,6 @@ $(document).ready(function () {
     saveCart(cart);
     renderCartBadge();
     $('#productDetailsModal').modal('hide');
-    Swal.fire({ icon: 'success', text: 'Item added to cart!', timer: 900, showConfirmButton: false });
+    Swal.fire({ icon: 'success', text: 'Item added to cart!', timer: 1000, showConfirmButton: false });
   });
-
-  ensureProductModal();
-  loadItems();
-  renderCartBadge();
 });

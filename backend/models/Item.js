@@ -27,8 +27,9 @@ const Item = sequelize.define('Item', {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false
   },
-  img_path: {
-    type: DataTypes.STRING(255),
+  // ADDED: Replaced the redundant 'img_path' column with the 'images' text column
+  images: {
+    type: DataTypes.TEXT,
     allowNull: true
   },
   specs: {
@@ -37,7 +38,7 @@ const Item = sequelize.define('Item', {
   }
 }, {
   tableName: 'items',
-  underscored: true, // Handles snake_case timestamps and helps with img_path alignment
+  underscored: true, // Handles snake_case timestamps and helps with attribute naming alignment
   timestamps: true
 });
 
