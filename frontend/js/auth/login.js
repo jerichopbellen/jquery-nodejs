@@ -8,7 +8,7 @@ $(document).ready(function () {
     return;
   }
 
-  $('#login').on('click', function (e) {
+  $('#login').on('submit', function (e) {
     e.preventDefault();
 
     const email = $('#email').val().trim();
