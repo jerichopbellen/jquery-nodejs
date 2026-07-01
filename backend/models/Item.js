@@ -11,15 +11,13 @@ const Item = sequelize.define('Item', {
     type: DataTypes.STRING(255),
     allowNull: false
   },
-  brand: {
-    type: DataTypes.STRING(50),
-    allowNull: false,
-    defaultValue: 'Generic'
+  brand_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true
   },
-  category: {
-    type: DataTypes.STRING(50),
-    allowNull: false,
-    defaultValue: 'Smartphones'
+  category_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true
   },
   cost_price: {
     type: DataTypes.DECIMAL(10, 2),

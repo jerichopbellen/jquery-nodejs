@@ -81,40 +81,47 @@
           </button>
         </div>
         <div class="modal-body">
-          <form id="iform">
-            <div class="form-group">
-              <label for="desc" class="control-label">Description</label>
-              <input type="text" class="form-control" id="desc" name="description" />
-            </div>
-            <div class="form-group">
-              <label for="brand" class="control-label">Brand</label>
-              <input type="text" class="form-control" id="brand" name="brand" placeholder="e.g., Apple, Samsung" />
-            </div>
-            <div class="form-group">
-              <label for="category" class="control-label">Category</label>
-              <input type="text" class="form-control" id="category" name="category" placeholder="e.g., Smartphones, Laptops" />
-            </div>
-            <div class="form-group">
-              <label for="sell" class="control-label">Sell Price</label>
-              <input type="text" class="form-control" id="sell" name="sell_price" />
-            </div>
-            <div class="form-group">
-              <label for="cost" class="control-label">Cost Price</label>
-              <input type="text" class="form-control" id="cost" name="cost_price" />
-            </div>
-            <div class="form-group">
-              <label for="qty" class="control-label">Quantity</label>
-              <input type="text" class="form-control" id="qty" name="quantity" />
-            </div>
-            <div class="form-group">
-              <label for="specs" class="control-label">Specifications (JSON format)</label>
-              <textarea class="form-control" id="specs" name="specs" placeholder='{"ram": "8GB", "storage": "128GB"}'></textarea>
-            </div>
-            <div class="form-group">
-              <label for="img" class="control-label">Image</label>
-              <input type="file" class="form-control" id="img" name="image" /> 
-            </div>
-          </form>
+        <form id="iform">
+          <div class="form-group">
+            <label for="desc" class="control-label">Description</label>
+            <input type="text" class="form-control" id="desc" name="description" />
+          </div>
+
+          <div class="form-group">
+            <label for="brand" class="control-label">Brand</label>
+            <select class="form-control" id="brand" name="brand_id">
+              <option value="">Select Brand</option>
+              </select>
+          </div>
+
+          <div class="form-group">
+            <label for="category" class="control-label">Category</label>
+            <select class="form-control" id="category" name="category_id">
+              <option value="">Select Category</option>
+              </select>
+          </div>
+
+          <div class="form-group">
+            <label for="sell" class="control-label">Sell Price</label>
+            <input type="text" class="form-control" id="sell" name="sell_price" />
+          </div>
+          <div class="form-group">
+            <label for="cost" class="control-label">Cost Price</label>
+            <input type="text" class="form-control" id="cost" name="cost_price" />
+          </div>
+          <div class="form-group">
+            <label for="qty" class="control-label">Quantity</label>
+            <input type="text" class="form-control" id="qty" name="quantity" />
+          </div>
+          <div class="form-group">
+            <label for="specs" class="control-label">Specifications (JSON format)</label>
+            <textarea class="form-control" id="specs" name="specs" placeholder='{\"ram\": \"8GB\", \"storage\": \"128GB\"}'></textarea>
+          </div>
+          <div class="form-group">
+            <label for="img" class="control-label">Image</label>
+            <input type="file" class="form-control" id="img" name="image" /> 
+          </div>
+        </form>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>

@@ -1,16 +1,23 @@
-const { Item, Stock } = require('../models');
+const { Item, Stock, Brand, Category } = require('../models');
 
-// Matches your route names exactly
+// 1. GET ALL ITEMS (With Normalized Eager Loading)
 const getAllItems = async (req, res) => {
   try {
     const items = await Item.findAll({
-      include: [{ model: Stock, as: 'Stock', attributes: ['quantity'] }]
+      include: [
+        { model: Stock, as: 'Stock', attributes: ['quantity'] },
+        { model: Brand, as: 'brandInfo', attributes: ['name'] },
+        { model: Category, as: 'categoryInfo', attributes: ['name'] }
+      ]
     });
 
     const formattedRows = items.map(item => {
       const plainItem = item.toJSON();
       return {
         ...plainItem,
+        // Safeguard flat properties for backwards compatibility with DataTables columns
+        brand: plainItem.brandInfo ? plainItem.brandInfo.name : 'Generic',
+        category: plainItem.categoryInfo ? plainItem.categoryInfo.name : 'Uncategorized',
         quantity: plainItem.Stock ? plainItem.Stock.quantity : 0
       };
     });
@@ -21,11 +28,16 @@ const getAllItems = async (req, res) => {
   }
 };
 
+// 2. GET SINGLE ITEM
 const getSingleItem = async (req, res) => {
   try {
     const { id } = req.params;
     const item = await Item.findByPk(id, {
-      include: [{ model: Stock, as: 'Stock', attributes: ['quantity'] }]
+      include: [
+        { model: Stock, as: 'Stock', attributes: ['quantity'] },
+        { model: Brand, as: 'brandInfo', attributes: ['name'] },
+        { model: Category, as: 'categoryInfo', attributes: ['name'] }
+      ]
     });
 
     if (!item) return res.status(404).json({ success: false, message: "Item not found" });
@@ -33,6 +45,8 @@ const getSingleItem = async (req, res) => {
     const plainItem = item.toJSON();
     const formattedResult = [{
       ...plainItem,
+      brand: plainItem.brandInfo ? plainItem.brandInfo.name : 'Generic',
+      category: plainItem.categoryInfo ? plainItem.categoryInfo.name : 'Uncategorized',
       quantity: plainItem.Stock ? plainItem.Stock.quantity : 0
     }];
 
@@ -42,37 +56,37 @@ const getSingleItem = async (req, res) => {
   }
 };
 
+// 3. CREATE ITEM
 const createItem = async (req, res) => {
   try {
-    const { description, brand, category, cost_price, sell_price, quantity, specs } = req.body;
+    // Destructure using relational IDs sent from front-end select tags
+    const { description, brand_id, category_id, cost_price, sell_price, quantity, specs } = req.body;
 
-    // Optional validation check
     if (!description || !cost_price || !sell_price) {
-      return res.status(400).json({ success: false, message: "Missing required product fields" });
+      return res.status(400).json({ success: false, message: "Description, Cost Price, and Sell Price are required." });
     }
 
-    // Safely parse JSON strings sent from the client form data
-    let parsedSpecs = null;
-    if (specs) {
+    // Safely structure JSON payload
+    let parsedSpecs = {};
+    if (specs && specs.trim() !== "") {
       try {
         parsedSpecs = typeof specs === 'string' ? JSON.parse(specs) : specs;
       } catch (err) {
-        parsedSpecs = { raw: specs };
+        return res.status(400).json({ success: false, message: "Invalid JSON format in Specifications." });
       }
     }
 
-    // Build item using fallbacks so values aren't saved as explicit undefined
     const item = await Item.create({
       description,
-      brand: brand || 'Generic',
-      category: category || 'Smartphones',
-      cost_price,
-      sell_price,
-      img_path: req.file ? `images/${req.file.filename}` : 'images/default.png',
+      brand_id: brand_id ? Number(brand_id) : null,
+      category_id: category_id ? Number(category_id) : null,
+      cost_price: Number(cost_price),
+      sell_price: Number(sell_price),
+      img_path: req.file ? `images/${req.file.filename}` : 'images/default-gadget.jpg',
       specs: parsedSpecs
     });
 
-    // Create the accompanying database record inside your stocks table
+    // Create tracking stock row
     await Stock.create({
       item_id: item.item_id,
       quantity: quantity ? Number(quantity) : 0
@@ -84,23 +98,37 @@ const createItem = async (req, res) => {
   }
 };
 
+// 4. UPDATE ITEM
 const updateItem = async (req, res) => {
   try {
     const { id } = req.params;
-    const { description, brand, category, cost_price, sell_price, quantity, specs } = req.body;
+    const { description, brand_id, category_id, cost_price, sell_price, quantity, specs } = req.body;
 
     const item = await Item.findByPk(id);
     if (!item) return res.status(404).json({ success: false, message: "Gadget record not found" });
 
+    let parsedSpecs = item.specs;
+    if (specs && specs.trim() !== "") {
+      try {
+        parsedSpecs = typeof specs === 'string' ? JSON.parse(specs) : specs;
+      } catch (err) {
+        return res.status(400).json({ success: false, message: "Invalid JSON format in Specifications." });
+      }
+    }
+
     await item.update({
-      description, brand, category, cost_price, sell_price,
-      img_path: req.file ? `uploads/${req.file.filename}` : item.img_path,
-      specs: specs || item.specs
+      description: description || item.description,
+      brand_id: brand_id ? Number(brand_id) : item.brand_id,
+      category_id: category_id ? Number(category_id) : item.category_id,
+      cost_price: cost_price ? Number(cost_price) : item.cost_price,
+      sell_price: sell_price ? Number(sell_price) : item.sell_price,
+      img_path: req.file ? `images/${req.file.filename}` : item.img_path, // Fixed folder mapping path
+      specs: parsedSpecs
     });
 
     if (quantity !== undefined) {
       await Stock.upsert({
-        item_id: id,
+        item_id: Number(id),
         quantity: Number(quantity)
       });
     }
@@ -111,6 +139,7 @@ const updateItem = async (req, res) => {
   }
 };
 
+// 5. DELETE ITEM
 const deleteItem = async (req, res) => {
   try {
     const { id } = req.params;
@@ -123,7 +152,6 @@ const deleteItem = async (req, res) => {
   }
 };
 
-// Check this object export line carefully! It must contain these exact names.
 module.exports = {
   getAllItems,
   getSingleItem,
