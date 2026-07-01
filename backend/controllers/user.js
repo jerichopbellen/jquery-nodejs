@@ -9,7 +9,7 @@ const registerUser = async (req, res) => {
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, message: 'name, email, password are required' });
     }
-    
+
     const userExists = await User.findOne({ where: { email } });
     if (userExists) {
       return res.status(409).json({ success: false, message: 'Email already registered' });
@@ -25,18 +25,17 @@ const registerUser = async (req, res) => {
       is_active: true
     });
 
-    return res.status(201).json({ 
-      success: true, 
-      message: 'Registered successfully', 
-      userId: newUser.user_id 
+    return res.status(201).json({
+      success: true,
+      message: 'Registered successfully',
+      userId: newUser.user_id
     });
-
   } catch (e) {
     return res.status(500).json({ success: false, message: e.message });
   }
 };
 
-// 2. LOGIN USER (Stateless JWT implementation)
+// 2. LOGIN USER
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -50,15 +49,21 @@ const loginUser = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid Email or Password' });
     }
 
+    if (!user.is_active) {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account is deactivated. Please contact admin.'
+      });
+    }
+
     const isPasswordMatched = await bcrypt.compare(password, user.password);
     if (!isPasswordMatched) {
       return res.status(401).json({ success: false, message: 'Invalid Email or Password' });
     }
 
-    // Generate Token for Authentication (MP5 - 15pts)
     const token = jwt.sign(
-      { id: user.user_id, email: user.email }, 
-      process.env.JWT_SECRET, 
+      { id: user.user_id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
@@ -69,60 +74,76 @@ const loginUser = async (req, res) => {
         id: user.user_id,
         name: user.name,
         email: user.email,
-        role: user.role 
+        role: user.role
       }
     });
-
   } catch (e) {
     return res.status(500).json({ success: false, message: e.message });
   }
 };
 
-// 3. UPDATE USER PROFILE
-const updateUser = async (req, res) => {
+// 3. LIST USERS (for DataTable)
+const getAllUsers = async (req, res) => {
   try {
-    const { name, role, is_active } = req.body;
-    const userId = req.user?.user_id || req.user?.id;
+    const users = await User.findAll({
+      attributes: ['user_id', 'name', 'email', 'role', 'is_active'],
+      order: [['user_id', 'DESC']]
+    });
 
-    if (!userId) {
-      return res.status(401).json({ success: false, message: 'Unauthorized' });
-    }
+    return res.status(200).json({
+      success: true,
+      rows: users
+    });
+  } catch (e) {
+    return res.status(500).json({ success: false, message: e.message });
+  }
+};
 
-    const user = await User.findByPk(userId);
+// 4. ADMIN UPDATE USER (role + status + basic fields)
+const adminUpdateUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, role, is_active } = req.body;
+
+    const user = await User.findByPk(id);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
     await user.update({
-      name: name || user.name,
-      role: role || user.role,
-      is_active: is_active !== undefined ? is_active : user.is_active
+      name: name ?? user.name,
+      email: email ?? user.email,
+      role: role ?? user.role,
+      is_active: typeof is_active === 'boolean' ? is_active : user.is_active
     });
 
-    return res.status(200).json({ success: true, message: 'Profile updated successfully' });
-
+    return res.status(200).json({ success: true, message: 'User updated successfully' });
   } catch (e) {
     return res.status(500).json({ success: false, message: e.message });
   }
 };
 
-// 4. DEACTIVATE USER
-const deactivateUser = async (req, res) => {
+// 5. ADMIN TOGGLE STATUS (activate/deactivate)
+const updateUserStatus = async (req, res) => {
   try {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
+    const { id } = req.params;
+    const { is_active } = req.body;
 
-    const [affectedRows] = await User.update(
-      { is_active: false }, 
-      { where: { email, is_active: true } }
-    );
-
-    if (affectedRows === 0) {
-      return res.status(404).json({ success: false, message: 'User not found or already deactivated' });
+    if (typeof is_active !== 'boolean') {
+      return res.status(400).json({ success: false, message: 'is_active must be boolean' });
     }
 
-    return res.status(200).json({ success: true, message: 'User deactivated successfully' });
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
 
+    await user.update({ is_active });
+
+    return res.status(200).json({
+      success: true,
+      message: is_active ? 'User activated successfully' : 'User deactivated successfully'
+    });
   } catch (e) {
     return res.status(500).json({ success: false, message: e.message });
   }
@@ -131,6 +152,7 @@ const deactivateUser = async (req, res) => {
 module.exports = {
   registerUser,
   loginUser,
-  updateUser,
-  deactivateUser
+  getAllUsers,
+  adminUpdateUser,
+  updateUserStatus
 };

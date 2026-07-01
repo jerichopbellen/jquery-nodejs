@@ -10,12 +10,12 @@ const {
   deleteCategory
 } = require('../controllers/category'); 
 
-const { isAuthenticatedUser } = require('../middlewares/auth');
+const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/auth');
 
 router.get('/categories', getAllCategories);
 router.get('/categories/:id', getSingleCategory);
-router.post('/categories', isAuthenticatedUser, createCategory);
-router.put('/categories/:id', isAuthenticatedUser, updateCategory);
-router.delete('/categories/:id', isAuthenticatedUser, deleteCategory);
+router.post('/categories', isAuthenticatedUser, authorizeRoles('admin'), createCategory);
+router.put('/categories/:id', isAuthenticatedUser, authorizeRoles('admin'), updateCategory);
+router.delete('/categories/:id', isAuthenticatedUser, authorizeRoles('admin'), deleteCategory);
 
 module.exports = router;

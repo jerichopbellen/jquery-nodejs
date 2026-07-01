@@ -3,7 +3,7 @@ $(document).ready(function () {
   const token = sessionStorage.getItem('token');
   const role = sessionStorage.getItem('role');
 
-  // simple admin guard
+  // Admin guard
   if (!token) {
     Swal.fire({ icon: 'warning', text: 'Please login first.' }).then(() => {
       window.location.href = 'login.html';
@@ -18,19 +18,27 @@ $(document).ready(function () {
     return;
   }
 
-  // Expected in users.html:
-  // table#usersTable
-  // modal#usersModal
-  // form#usersForm
-  // inputs: #userName #userEmail #userRole #userActive
-  // buttons: #userCreateBtn #userUpdateBtn
-
+  // users table
   const table = $('#usersTable').DataTable({
     ajax: {
       url: `${url}api/v1/users`,
-      dataSrc: 'rows',
-      headers: { Authorization: `Bearer ${token}` }
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+      dataSrc: function (json) {
+        // supports either array or { rows: [...] }
+        if (Array.isArray(json)) return json;
+        return json?.rows || [];
+      },
+      error: function (xhr) {
+        console.error('Users fetch error:', xhr.status, xhr.responseText);
+        Swal.fire({
+          icon: 'error',
+          text: xhr.responseJSON?.message || 'Failed to load users table.'
+        });
+      }
     },
+    dom: 'Bfrtip',
+    buttons: ['pdf', 'excel'],
     columns: [
       { data: 'user_id' },
       { data: 'name' },
@@ -39,7 +47,7 @@ $(document).ready(function () {
       {
         data: 'is_active',
         render: function (v) {
-          return v
+          return Number(v) === 1
             ? '<span class="badge badge-success">Active</span>'
             : '<span class="badge badge-secondary">Inactive</span>';
         }
@@ -47,11 +55,17 @@ $(document).ready(function () {
       {
         data: null,
         orderable: false,
+        searchable: false,
         render: function (row) {
+          const active = Number(row.is_active) === 1;
           return `
-            <button class="btn btn-sm btn-primary btn-edit-user" data-id="${row.user_id}">Edit</button>
-            <button class="btn btn-sm btn-warning btn-toggle-user" data-id="${row.user_id}" data-active="${row.is_active}">
-              ${row.is_active ? 'Deactivate' : 'Activate'}
+            <button class="btn btn-sm btn-primary btn-edit-user" data-id="${row.user_id}">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn btn-sm ${active ? 'btn-warning' : 'btn-success'} btn-toggle-user"
+                    data-id="${row.user_id}"
+                    data-active="${active}">
+              ${active ? 'Deactivate' : 'Activate'}
             </button>
           `;
         }
@@ -59,12 +73,7 @@ $(document).ready(function () {
     ]
   });
 
-  $('#userCreateBtn').on('click', function () {
-    $('#usersForm').trigger('reset');
-    $('#userUpdateBtn').hide().data('id', '');
-    $('#usersModal').modal('show');
-  });
-
+  // open edit modal
   $('#usersTable').on('click', '.btn-edit-user', function () {
     const id = Number($(this).data('id'));
     const row = table.rows().data().toArray().find(u => Number(u.user_id) === id);
@@ -73,16 +82,21 @@ $(document).ready(function () {
     $('#userName').val(row.name || '');
     $('#userEmail').val(row.email || '');
     $('#userRole').val(row.role || 'customer');
-    $('#userActive').prop('checked', !!row.is_active);
+    $('#userActive').prop('checked', Number(row.is_active) === 1);
 
-    $('#userUpdateBtn').show().data('id', id);
+    $('#userUpdateBtn').data('id', id);
     $('#usersModal').modal('show');
   });
 
+  // update user (role + basic profile + active flag)
   $('#userUpdateBtn').on('click', function (e) {
     e.preventDefault();
+
     const id = $(this).data('id');
-    if (!id) return;
+    if (!id) {
+      Swal.fire({ icon: 'warning', text: 'No user selected.' });
+      return;
+    }
 
     const payload = {
       name: $('#userName').val().trim(),
@@ -91,46 +105,62 @@ $(document).ready(function () {
       is_active: $('#userActive').is(':checked')
     };
 
+    if (!payload.name || !payload.email || !payload.role) {
+      Swal.fire({ icon: 'warning', text: 'Name, email, and role are required.' });
+      return;
+    }
+
     $.ajax({
       method: 'PUT',
       url: `${url}api/v1/users/${id}`,
-      data: JSON.stringify(payload),
-      processData: false,
+      headers: { Authorization: `Bearer ${token}` },
       contentType: 'application/json; charset=utf-8',
       dataType: 'json',
-      headers: { Authorization: `Bearer ${token}` },
-      success: function () {
+      data: JSON.stringify(payload),
+      success: function (res) {
         $('#usersModal').modal('hide');
         table.ajax.reload(null, false);
-        Swal.fire({ icon: 'success', text: 'User updated successfully.' });
+        Swal.fire({ icon: 'success', text: res?.message || 'User updated successfully.' });
       },
-      error: function (error) {
-        Swal.fire({ icon: 'error', text: error.responseJSON?.message || 'Update user failed.' });
+      error: function (xhr) {
+        Swal.fire({ icon: 'error', text: xhr.responseJSON?.message || 'Update user failed.' });
       }
     });
   });
 
+  // activate/deactivate
   $('#usersTable').on('click', '.btn-toggle-user', function () {
     const id = Number($(this).data('id'));
     const isActive = String($(this).data('active')) === 'true';
+    const nextState = !isActive;
 
-    $.ajax({
-      method: 'PATCH',
-      url: `${url}api/v1/users/${id}/status`,
-      data: JSON.stringify({ is_active: !isActive }),
-      processData: false,
-      contentType: 'application/json; charset=utf-8',
-      dataType: 'json',
-      headers: { Authorization: `Bearer ${token}` },
-      success: function () {
-        table.ajax.reload(null, false);
-        Swal.fire({
-          icon: 'success',
-          text: isActive ? 'User deactivated.' : 'User activated.'
-        });
+    bootbox.confirm({
+      message: `Are you sure you want to ${nextState ? 'activate' : 'deactivate'} this user?`,
+      buttons: {
+        confirm: { label: 'Yes', className: 'btn-success' },
+        cancel: { label: 'No', className: 'btn-danger' }
       },
-      error: function (error) {
-        Swal.fire({ icon: 'error', text: error.responseJSON?.message || 'Status update failed.' });
+      callback: function (result) {
+        if (!result) return;
+
+        $.ajax({
+          method: 'PATCH',
+          url: `${url}api/v1/users/${id}/status`,
+          headers: { Authorization: `Bearer ${token}` },
+          contentType: 'application/json; charset=utf-8',
+          dataType: 'json',
+          data: JSON.stringify({ is_active: nextState }),
+          success: function (res) {
+            table.ajax.reload(null, false);
+            Swal.fire({
+              icon: 'success',
+              text: res?.message || (nextState ? 'User activated.' : 'User deactivated.')
+            });
+          },
+          error: function (xhr) {
+            Swal.fire({ icon: 'error', text: xhr.responseJSON?.message || 'Status update failed.' });
+          }
+        });
       }
     });
   });

@@ -1,15 +1,22 @@
 const express = require('express');
 const router = express.Router();
-const upload = require('../utils/multer')
 
-const { registerUser,
-    loginUser,
-    updateUser,
-    deactivateUser
-} = require('../controllers/user')
+const {
+  registerUser,
+  loginUser,
+  getAllUsers,
+  adminUpdateUser,
+  updateUserStatus
+} = require('../controllers/user');
 
-router.post('/register', registerUser)
-router.post('/login', loginUser)
-router.post('/update-profile', upload.single('image'), updateUser)
-router.delete('/deactivate', deactivateUser)
-module.exports = router
+const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/auth');
+
+router.post('/register', registerUser);
+router.post('/login', loginUser);
+
+// Admin user management endpoints used by frontend/js/admin/users.js
+router.get('/users', isAuthenticatedUser, authorizeRoles('admin'), getAllUsers);                 
+router.put('/users/:id', isAuthenticatedUser, authorizeRoles('admin'), adminUpdateUser);         
+router.patch('/users/:id/status', isAuthenticatedUser, authorizeRoles('admin'), updateUserStatus);
+
+module.exports = router;

@@ -10,12 +10,12 @@ const {
   deleteBrand
 } = require('../controllers/brand'); 
 
-const { isAuthenticatedUser } = require('../middlewares/auth');
+const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/auth');
 
 router.get('/brands', getAllBrands);
 router.get('/brands/:id', getSingleBrand);
-router.post('/brands', isAuthenticatedUser, createBrand);
-router.put('/brands/:id', isAuthenticatedUser, updateBrand);
-router.delete('/brands/:id', isAuthenticatedUser, deleteBrand);
+router.post('/brands', isAuthenticatedUser, authorizeRoles('admin'), createBrand);
+router.put('/brands/:id', isAuthenticatedUser, authorizeRoles('admin'), updateBrand);
+router.delete('/brands/:id', isAuthenticatedUser, authorizeRoles('admin'), deleteBrand);
 
 module.exports = router;
