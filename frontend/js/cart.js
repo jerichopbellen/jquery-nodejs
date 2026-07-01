@@ -37,7 +37,18 @@ $(document).ready(function () {
       cart.forEach((item, idx) => {
         const subtotal = Number(item.price) * Number(item.quantity);
         total += subtotal;
-        imagePath = item.img_path ? `${url}${item.img_path}` : `${url}images/default-gadget.jpg`;
+        
+        const fallbackAsset = `${url}images/default-gadget.jpg`; 
+        let imagePath = fallbackAsset;
+
+        if (item.image && item.image.trim() !== '' && item.image !== 'null') {
+          if (item.image.includes('default-gadget')) {
+            imagePath = fallbackAsset;
+          } else {
+            imagePath = item.image;
+          }
+        }  
+              
         html += `
           <tr>
             <td><img src="${imagePath}" width="60" alt="${item.description}"></td>
