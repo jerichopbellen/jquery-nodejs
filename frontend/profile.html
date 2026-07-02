@@ -25,18 +25,21 @@
   <div class="container">
     <h1>User Profile</h1>
     <form id="profileForm" enctype="multipart/form-data">
-      <div class="form-group">
-        <label for="avatar">Avatar:</label>
-        <input type="file" id="avatar" name="image" accept="image/*" class="form-control" />
-        <img id="avatarPreview" src="#" alt="Avatar Preview" style="display:none;max-width:120px;" />
-      </div>
-      <div class="form-group"><label>First Name:</label><input type="text" id="firstName" name="fname" class="form-control" /></div>
-      <div class="form-group"><label>Last Name:</label><input type="text" id="lastName" name="lname" class="form-control" /></div>
-      <div class="form-group"><label>Address:</label><input type="text" id="address" name="addressline" class="form-control" /></div>
-      <div class="form-group"><label>Phone:</label><input type="text" id="phone" name="phone" class="form-control" /></div>
-      <div class="form-group"><label>Postcode:</label><input type="text" id="zipcode" name="zipcode" class="form-control" /></div>
-      <button type="submit" id="updateBtn" class="btn btn-primary">Submit</button>
-    </form>
+  <div class="form-group">
+    <label for="avatar">Avatar:</label>
+    <input type="file" id="avatar" name="image" accept="image/*" class="form-control" disabled /> <!-- added disabled -->
+    <img id="avatarPreview" src="" alt="Avatar Preview" style="display:none;max-width:120px;margin-top:10px;" />
+  </div>
+  <div class="form-group"><label>First Name:</label><input type="text" id="firstName" name="fname" class="form-control" readonly /><div class="invalid-feedback">First name is required.</div></div>
+  <div class="form-group"><label>Last Name:</label><input type="text" id="lastName" name="lname" class="form-control" readonly /><div class="invalid-feedback">Last name is required.</div></div>
+  <div class="form-group"><label>Address:</label><input type="text" id="address" name="addressline" class="form-control" readonly /><div class="invalid-feedback">Address is required.</div></div>
+  <div class="form-group"><label>Phone:</label><input type="text" id="phone" name="phone" class="form-control" readonly /><div class="invalid-feedback">Phone is required.</div></div>
+  <div class="form-group"><label>Postcode:</label><input type="text" id="zipcode" name="zipcode" class="form-control" readonly /><div class="invalid-feedback">Postcode is required.</div></div>
+
+  <button type="button" id="editBtn" class="btn btn-secondary">Edit</button>            <!-- new -->
+  <button type="submit" id="updateBtn" class="btn btn-primary" style="display:none;">Submit</button> <!-- added style:none -->
+  <button type="button" id="cancelBtn" class="btn btn-outline-secondary" style="display:none;">Cancel</button> <!-- new -->
+</form>
   </div>
 </body>
 </html>
