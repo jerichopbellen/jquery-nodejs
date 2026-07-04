@@ -1,4 +1,4 @@
-const { Item, Stock, Brand, Category } = require('../models');
+const { Item, Stock, Brand, Category, Review, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const fs = require('fs');
 const path = require('path');
@@ -29,8 +29,10 @@ function normalizeImages(itemLike) {
   return [DEFAULT_IMAGE];
 }
 
-function formatItem(item) {
+function formatItem(item, ratingData) {
   const plain = item.get({ plain: true });
+  const rating = ratingData || { averageRating: 0, totalReviews: 0 };
+
   return {
     item_id: plain.item_id,
     description: plain.description,
@@ -43,20 +45,39 @@ function formatItem(item) {
     images: plain.images || JSON.stringify([plain.img_path || DEFAULT_IMAGE]),
     quantity: plain.Stock?.quantity ?? 0,
     brand: plain.brandInfo?.name || 'Unknown',
-    category: plain.categoryInfo?.name || 'Unknown'
+    category: plain.categoryInfo?.name || 'Unknown',
+    averageRating: rating.averageRating,
+    totalReviews: rating.totalReviews
   };
 }
 
+// Bulk-fetch average rating + review count for a list of item IDs in ONE query,
+// instead of querying per item (which would be slow for a grid of 12-48 items).
+async function getRatingsMap(itemIds) {
+  if (!itemIds || itemIds.length === 0) return {};
+
+  const results = await Review.findAll({
+    where: { item_id: itemIds },
+    attributes: [
+      'item_id',
+      [sequelize.fn('AVG', sequelize.col('rating')), 'averageRating'],
+      [sequelize.fn('COUNT', sequelize.col('review_id')), 'totalReviews']
+    ],
+    group: ['item_id'],
+    raw: true
+  });
+
+  const map = {};
+  results.forEach((r) => {
+    map[r.item_id] = {
+      averageRating: Number(Number(r.averageRating).toFixed(1)),
+      totalReviews: Number(r.totalReviews)
+    };
+  });
+  return map;
+}
+
 // 1. GET ALL ITEMS (With Normalized Eager Loading)
-// Supports optional ?page=&limit= query params for infinite-scroll/pagination use
-// on the customer-facing homepage. When no "page" param is sent (e.g. the admin
-// DataTable's request), behavior is unchanged: it returns the full list, exactly
-// like before, so admin-items.html keeps working with zero changes.
-//
-// ADDED: optional ?search= query param (used by the homepage search/autocomplete
-// box) filters results by description, matched case-insensitively. Works on both
-// the paginated and unpaginated paths, so it can't break existing DataTable usage
-// when "search" isn't sent.
 const getAllItems = async (req, res) => {
   try {
     const includeOptions = [
@@ -65,12 +86,14 @@ const getAllItems = async (req, res) => {
       { model: Category, as: 'categoryInfo', attributes: ['name'] }
     ];
 
-    const { page, limit, search } = req.query;
+    const { page, limit, search, brand_id } = req.query;
 
-    // Build an optional WHERE clause when a search term is provided
     const whereOptions = {};
     if (search && search.trim() !== '') {
       whereOptions.description = { [Op.like]: `%${search.trim()}%` };
+    }
+    if (brand_id) {
+      whereOptions.brand_id = Number(brand_id);
     }
 
     // --- Paginated path (used by home.js infinite scroll / search) ---
@@ -85,10 +108,11 @@ const getAllItems = async (req, res) => {
         limit: limitNum,
         offset,
         order: [['item_id', 'DESC']],
-        distinct: true // keeps count accurate with the joined includes
+        distinct: true
       });
 
-      const formattedRows = rows.map(formatItem);
+      const ratingsMap = await getRatingsMap(rows.map((r) => r.item_id));
+      const formattedRows = rows.map((item) => formatItem(item, ratingsMap[item.item_id]));
       const hasMore = offset + formattedRows.length < count;
 
       return res.status(200).json({
@@ -106,7 +130,8 @@ const getAllItems = async (req, res) => {
 
     // --- Original, unpaginated path (used by admin-items.html DataTable) ---
     const items = await Item.findAll({ where: whereOptions, include: includeOptions });
-    const formattedRows = items.map(formatItem);
+    const ratingsMap = await getRatingsMap(items.map((r) => r.item_id));
+    const formattedRows = items.map((item) => formatItem(item, ratingsMap[item.item_id]));
 
     res.status(200).json({ success: true, rows: formattedRows });
   } catch (e) {
@@ -130,7 +155,8 @@ const getSingleItem = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Item not found.' });
     }
 
-    const payload = formatItem(item);
+    const ratingsMap = await getRatingsMap([item.item_id]);
+    const payload = formatItem(item, ratingsMap[item.item_id]);
 
     res.status(200).json({ success: true, data: payload });
   } catch (e) {
@@ -152,7 +178,6 @@ const createItem = async (req, res) => {
       }
     }
 
-    // FIXED: Collect all items from multi-upload array (req.files) instead of req.file
     let uploadedImages = [];
     if (req.files && req.files.length > 0) {
       uploadedImages = req.files.map(file => file.path.replace(/\\/g, '/'));
@@ -160,7 +185,6 @@ const createItem = async (req, res) => {
       uploadedImages = [req.file.path.replace(/\\/g, '/')];
     }
 
-    // Fallback if no images are provided at all
     if (uploadedImages.length === 0) {
       uploadedImages.push(DEFAULT_IMAGE);
     }
@@ -171,8 +195,8 @@ const createItem = async (req, res) => {
       category_id: category_id ? Number(category_id) : null,
       cost_price: cost_price ? Number(cost_price) : 0,
       sell_price: sell_price ? Number(sell_price) : 0,
-      img_path: uploadedImages[0], // Keep primary image set here to prevent database constraints from breaking
-      images: JSON.stringify(uploadedImages), // Correctly stringifies entire string array into images column
+      img_path: uploadedImages[0],
+      images: JSON.stringify(uploadedImages),
       specs: parsedSpecs
     });
 
@@ -188,7 +212,6 @@ const createItem = async (req, res) => {
     res.status(500).json({ success: false, message: e.message });
   }
 };
-
 
 // 4. UPDATE ITEM
 const updateItem = async (req, res) => {
@@ -210,26 +233,20 @@ const updateItem = async (req, res) => {
       }
     }
 
-    // Unpack old files array configuration
     let currentImages = parseJsonArray(item.images);
     if (currentImages.length === 0 && item.img_path) {
       currentImages = [item.img_path];
     }
 
-    // --- NEW: Handle Individual Image Deletion Request ---
     if (imagesToDelete) {
       try {
-        // Parse the list of image paths sent from the frontend client
         const toDeleteArray = typeof imagesToDelete === 'string' ? JSON.parse(imagesToDelete) : imagesToDelete;
-        
+
         if (Array.isArray(toDeleteArray)) {
           toDeleteArray.forEach(imgRoute => {
-            // Filter out from our tracking array configuration
             currentImages = currentImages.filter(img => img !== imgRoute);
 
-            // Physically delete the file from the server disk storage
             if (imgRoute !== DEFAULT_IMAGE) {
-              // Adjust pathing if your "images" folder is inside a "public" directory (e.g., '../public/' + imgRoute)
               const absoluteFilePath = path.join(__dirname, '..', imgRoute);
               fs.unlink(absoluteFilePath, (err) => {
                 if (err) {
@@ -244,7 +261,6 @@ const updateItem = async (req, res) => {
       }
     }
 
-    // Capture newly uploaded files from multi-upload array (req.files)
     let uploadedImages = [];
     if (req.files && req.files.length > 0) {
       uploadedImages = req.files.map(file => file.path.replace(/\\/g, '/'));
@@ -252,15 +268,12 @@ const updateItem = async (req, res) => {
       uploadedImages = [req.file.path.replace(/\\/g, '/')];
     }
 
-    // Clean out fallback thumbnail placeholder if new images are replacing it
     if (uploadedImages.length > 0 && currentImages.length === 1 && currentImages[0] === DEFAULT_IMAGE) {
       currentImages = [];
     }
 
-    // Combine what remains of the old gallery images with the newly added files
     const nextImages = [...currentImages, ...uploadedImages];
 
-    // Fallback if no images are left at all
     if (nextImages.length === 0) {
       nextImages.push(DEFAULT_IMAGE);
     }
@@ -271,8 +284,8 @@ const updateItem = async (req, res) => {
       category_id: category_id ? Number(category_id) : item.category_id,
       cost_price: cost_price ? Number(cost_price) : item.cost_price,
       sell_price: sell_price ? Number(sell_price) : item.sell_price,
-      img_path: nextImages[0], // Synchronize master thumbnail pointer
-      images: JSON.stringify(nextImages), // Save total updated JSON dataset configurations
+      img_path: nextImages[0],
+      images: JSON.stringify(nextImages),
       specs: parsedSpecs
     });
 

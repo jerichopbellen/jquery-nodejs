@@ -6,6 +6,7 @@ const Order = require('./Order');
 const OrderItem = require('./OrderItem'); 
 const Brand = require('./Brand');
 const Category = require('./Category');
+const Review = require('./Review');
 
 // 1. Existing Association: 1-to-1 Item <-> Stock
 Item.hasOne(Stock, { foreignKey: 'item_id', as: 'Stock', onDelete: 'CASCADE' });
@@ -30,7 +31,13 @@ Item.belongsTo(Brand, { foreignKey: 'brand_id', as: 'brandInfo' });
 // 6. New Association: 1-to-Many Category -> Item
 Category.hasMany(Item, { foreignKey: 'category_id', as: 'items' });
 Item.belongsTo(Category, { foreignKey: 'category_id', as: 'categoryInfo' });
-;
+
+// 7. New Association: 1-to-Many Item -> Review, User -> Review
+Item.hasMany(Review, { foreignKey: 'item_id', as: 'reviews', onDelete: 'CASCADE' });
+Review.belongsTo(Item, { foreignKey: 'item_id', as: 'item' });
+
+User.hasMany(Review, { foreignKey: 'user_id', as: 'reviews', onDelete: 'CASCADE' });
+Review.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
 module.exports = {
   sequelize,
@@ -40,5 +47,6 @@ module.exports = {
   Order,
   OrderItem,
   Brand,
-  Category
+  Category,
+  Review
 };

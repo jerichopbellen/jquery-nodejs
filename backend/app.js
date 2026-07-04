@@ -9,7 +9,7 @@ const dashboard = require('./routes/dashboard')
 const brands = require('./routes/brand');
 const categories = require('./routes/category');
 const adminOrderRoutes = require('./routes/adminOrder');
-
+const reviews = require('./routes/review');
 
 // app.get('/', (req, res) => {
 //     res.send('Hello from nodejs!')
@@ -24,6 +24,7 @@ app.use('/api/v1/dashboard', dashboard);
 app.use('/api/v1', brands);
 app.use('/api/v1', categories);
 app.use('/api/v1', adminOrderRoutes);
+app.use('/api/v1', reviews);
 
 const path = require('path');
 app.use('/images', express.static(path.join(__dirname, 'images')));
