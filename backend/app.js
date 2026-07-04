@@ -8,6 +8,8 @@ const orders = require('./routes/order');
 const dashboard = require('./routes/dashboard')
 const brands = require('./routes/brand');
 const categories = require('./routes/category');
+const adminOrderRoutes = require('./routes/adminOrder');
+
 
 // app.get('/', (req, res) => {
 //     res.send('Hello from nodejs!')
@@ -18,9 +20,10 @@ app.use(express.json())
 app.use('/api/v1', items);
 app.use('/api/v1', users);
 app.use('/api/v1', orders);
-app.use('/api/v1', dashboard);
+app.use('/api/v1/dashboard', dashboard);
 app.use('/api/v1', brands);
 app.use('/api/v1', categories);
+app.use('/api/v1', adminOrderRoutes);
 
 const path = require('path');
 app.use('/images', express.static(path.join(__dirname, 'images')));
