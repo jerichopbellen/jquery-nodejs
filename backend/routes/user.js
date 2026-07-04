@@ -6,13 +6,19 @@ const {
   loginUser,
   getAllUsers,
   adminUpdateUser,
-  updateUserStatus
+  updateUserStatus,
+  getMyProfile,
+  updateMyProfile
 } = require('../controllers/user');
 
 const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/auth');
+const upload = require('../utils/multer');
 
 router.post('/register', registerUser);
 router.post('/login', loginUser);
+
+router.get('/profile', isAuthenticatedUser, getMyProfile);
+router.put('/profile', isAuthenticatedUser, upload.single('image'), updateMyProfile);
 
 // Admin user management endpoints used by frontend/js/admin/users.js
 router.get('/users', isAuthenticatedUser, authorizeRoles('admin'), getAllUsers);                 
