@@ -1,4 +1,5 @@
 const { Item, Stock, Brand, Category } = require('../models');
+const { Op } = require('sequelize');
 const fs = require('fs');
 const path = require('path');
 const DEFAULT_IMAGE = 'images/default-gadget.jpg';
@@ -28,35 +29,84 @@ function normalizeImages(itemLike) {
   return [DEFAULT_IMAGE];
 }
 
+function formatItem(item) {
+  const plain = item.get({ plain: true });
+  return {
+    item_id: plain.item_id,
+    description: plain.description,
+    brand_id: plain.brand_id,
+    category_id: plain.category_id,
+    cost_price: plain.cost_price,
+    sell_price: plain.sell_price,
+    specs: plain.specs,
+    img_path: plain.img_path || DEFAULT_IMAGE,
+    images: plain.images || JSON.stringify([plain.img_path || DEFAULT_IMAGE]),
+    quantity: plain.Stock?.quantity ?? 0,
+    brand: plain.brandInfo?.name || 'Unknown',
+    category: plain.categoryInfo?.name || 'Unknown'
+  };
+}
+
 // 1. GET ALL ITEMS (With Normalized Eager Loading)
+// Supports optional ?page=&limit= query params for infinite-scroll/pagination use
+// on the customer-facing homepage. When no "page" param is sent (e.g. the admin
+// DataTable's request), behavior is unchanged: it returns the full list, exactly
+// like before, so admin-items.html keeps working with zero changes.
+//
+// ADDED: optional ?search= query param (used by the homepage search/autocomplete
+// box) filters results by description, matched case-insensitively. Works on both
+// the paginated and unpaginated paths, so it can't break existing DataTable usage
+// when "search" isn't sent.
 const getAllItems = async (req, res) => {
   try {
-    const items = await Item.findAll({
-      include: [
-        { model: Stock, as: 'Stock', attributes: ['quantity'] },
-        { model: Brand, as: 'brandInfo', attributes: ['name'] },
-        { model: Category, as: 'categoryInfo', attributes: ['name'] }
-      ]
-    });
+    const includeOptions = [
+      { model: Stock, as: 'Stock', attributes: ['quantity'] },
+      { model: Brand, as: 'brandInfo', attributes: ['name'] },
+      { model: Category, as: 'categoryInfo', attributes: ['name'] }
+    ];
 
-    const formattedRows = items.map(item => {
-      const plain = item.get({ plain: true });
-      return {
-        item_id: plain.item_id,
-        description: plain.description,
-        brand_id: plain.brand_id,
-        category_id: plain.category_id,
-        cost_price: plain.cost_price,
-        sell_price: plain.sell_price,
-        specs: plain.specs,
-        // Fallbacks preserved for frontend safety
-        img_path: plain.img_path || DEFAULT_IMAGE,
-        images: plain.images || JSON.stringify([plain.img_path || DEFAULT_IMAGE]),
-        quantity: plain.Stock?.quantity ?? 0,
-        brand: plain.brandInfo?.name || 'Unknown',
-        category: plain.categoryInfo?.name || 'Unknown'
-      };
-    });
+    const { page, limit, search } = req.query;
+
+    // Build an optional WHERE clause when a search term is provided
+    const whereOptions = {};
+    if (search && search.trim() !== '') {
+      whereOptions.description = { [Op.like]: `%${search.trim()}%` };
+    }
+
+    // --- Paginated path (used by home.js infinite scroll / search) ---
+    if (page) {
+      const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+      const limitNum = Math.max(parseInt(limit, 10) || 12, 1);
+      const offset = (pageNum - 1) * limitNum;
+
+      const { count, rows } = await Item.findAndCountAll({
+        where: whereOptions,
+        include: includeOptions,
+        limit: limitNum,
+        offset,
+        order: [['item_id', 'DESC']],
+        distinct: true // keeps count accurate with the joined includes
+      });
+
+      const formattedRows = rows.map(formatItem);
+      const hasMore = offset + formattedRows.length < count;
+
+      return res.status(200).json({
+        success: true,
+        rows: formattedRows,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          totalItems: count,
+          totalPages: Math.ceil(count / limitNum),
+          hasMore
+        }
+      });
+    }
+
+    // --- Original, unpaginated path (used by admin-items.html DataTable) ---
+    const items = await Item.findAll({ where: whereOptions, include: includeOptions });
+    const formattedRows = items.map(formatItem);
 
     res.status(200).json({ success: true, rows: formattedRows });
   } catch (e) {
@@ -80,21 +130,7 @@ const getSingleItem = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Item not found.' });
     }
 
-    const plain = item.get({ plain: true });
-    const payload = {
-      item_id: plain.item_id,
-      description: plain.description,
-      brand_id: plain.brand_id,
-      category_id: plain.category_id,
-      cost_price: plain.cost_price,
-      sell_price: plain.sell_price,
-      specs: plain.specs,
-      img_path: plain.img_path || DEFAULT_IMAGE,
-      images: plain.images || JSON.stringify([plain.img_path || DEFAULT_IMAGE]),
-      quantity: plain.Stock?.quantity ?? 0,
-      brand: plain.brandInfo?.name || 'Unknown',
-      category: plain.categoryInfo?.name || 'Unknown'
-    };
+    const payload = formatItem(item);
 
     res.status(200).json({ success: true, data: payload });
   } catch (e) {

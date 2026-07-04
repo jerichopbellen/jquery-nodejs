@@ -124,6 +124,7 @@ $(document).ready(function () {
   }
 
   $(window).on('scroll', function () {
+    if (isSearchActive) return; // don't auto-load more pages while a search filter is applied
     if (isNearBottom()) {
       loadItems();
     }
@@ -290,5 +291,175 @@ $(document).ready(function () {
     renderCartBadge();
     $('#productDetailsModal').modal('hide');
     Swal.fire({ icon: 'success', text: 'Item added to cart!', timer: 1000, showConfirmButton: false });
+  });
+
+  // ============================================================
+  // 4. Search / Autocomplete
+  // ============================================================
+  // NOTE: this assumes your backend supports a `search` query param
+  // on the existing items endpoint, e.g.:
+  //   GET /api/v1/items?search=iphone&limit=8
+  // returning the same { success, rows } shape as the paginated list.
+  // If your backend uses a different param name or a dedicated
+  // /search endpoint, just change SEARCH_URL / SEARCH_PARAM below.
+
+  const SEARCH_PARAM = 'search';
+  const SEARCH_DROPDOWN_LIMIT = 8;   // how many rows show in the small dropdown
+  const SEARCH_GRID_LIMIT = 48;      // how many rows filter into the main grid below
+  let searchDebounce;
+  let searchRequest; // holds in-flight ajax request so we can abort stale ones
+  let isSearchActive = false; // true while a search filter is applied to the main grid
+
+  function closeSearchResults() {
+    $('#searchResults').hide().empty();
+    $('.shop-header-row').css('margin-bottom', ''); // back to default spacing
+  }
+
+  // Expands the header row's bottom margin so the open dropdown has room
+  // to display without covering the product cards below it.
+  function makeRoomForDropdown() {
+    const dropdownHeight = $('#searchResults').outerHeight() || 0;
+    $('.shop-header-row').css('margin-bottom', (dropdownHeight + 32) + 'px');
+  }
+
+  // Renders search matches directly into the main product grid, reusing the
+  // same card markup as the normal infinite-scroll grid.
+  function renderFilteredGrid(rows) {
+    isSearchActive = true;
+    $('#itemsEnd').addClass('d-none');
+    $('#itemsError').addClass('d-none');
+
+    if (!rows || rows.length === 0) {
+      $('#items').html('<div class="row" id="itemsRow"><div class="col-12"><p class="text-muted text-center py-5">No products match your search.</p></div></div>');
+      return;
+    }
+
+    const cardsHtml = rows.map(buildItemCard).join('');
+    $('#items').html(`<div class="row" id="itemsRow">${cardsHtml}</div>`);
+  }
+
+  // Leaves search mode and restores the normal infinite-scroll grid from page 1
+  function restoreDefaultGrid() {
+    if (!isSearchActive) return;
+    isSearchActive = false;
+    currentPage = 1;
+    hasMore = true;
+    $('#itemsEnd').addClass('d-none');
+    $('#items').empty();
+    loadItems();
+  }
+
+  function renderSearchResults(rows) {
+    const $results = $('#searchResults');
+    $results.empty();
+
+    if (!rows || rows.length === 0) {
+      $results.append('<div class="search-item search-no-results">No products found.</div>');
+      $results.show();
+      makeRoomForDropdown();
+      return;
+    }
+
+    rows.forEach((item) => {
+      let imageArray = [];
+      try {
+        imageArray = typeof item.images === 'string' ? JSON.parse(item.images) : (item.images || []);
+      } catch (e) {
+        imageArray = [];
+      }
+      const primaryImg = (imageArray && imageArray.length > 0) ? imageArray[0] : 'images/default-gadget.jpg';
+      const itemImgSrc = `${url}${primaryImg}`;
+
+      const $item = $(`
+        <div class="search-item" data-id="${item.item_id}">
+          <img src="${itemImgSrc}" alt="${item.description}">
+          <div class="search-item-info">
+            <div class="search-item-name">${item.description}</div>
+            <div class="search-item-price">₱${Number(item.sell_price).toFixed(2)}</div>
+          </div>
+        </div>
+      `);
+
+      $item.on('click', function () {
+        closeSearchResults();
+        $('#productSearch').val('');
+        $('.btn-view-details[data-id="' + item.item_id + '"]').trigger('click');
+
+        // in case the item isn't currently rendered in the grid (e.g. not yet
+        // loaded by infinite scroll), trigger the modal directly instead
+        if ($('.btn-view-details[data-id="' + item.item_id + '"]').length === 0) {
+          $.ajax({
+            method: 'GET',
+            url: `${url}api/v1/items/${item.item_id}`,
+            dataType: 'json',
+            success: function (res) {
+              if (!res.success || !res.data) return;
+              $(document).trigger('showItemDetails', [res.data]);
+              // Reuse existing details logic by faking a click target with the id
+              const $fakeBtn = $(`<button class="btn-view-details d-none" data-id="${item.item_id}"></button>`).appendTo('body');
+              $fakeBtn.trigger('click');
+              $fakeBtn.remove();
+            }
+          });
+        }
+      });
+
+      $results.append($item);
+    });
+
+    $results.show();
+    makeRoomForDropdown();
+  }
+
+  $(document).on('input', '#productSearch', function () {
+    const query = $(this).val().trim();
+
+    clearTimeout(searchDebounce);
+    if (searchRequest && searchRequest.abort) searchRequest.abort();
+
+    if (query.length < 2) {
+      closeSearchResults();
+      restoreDefaultGrid(); // back to the normal infinite-scroll list
+      return;
+    }
+
+    searchDebounce = setTimeout(function () {
+      // Fetch a larger batch once, then use it for both the dropdown
+      // (first few) and the full filtered grid below.
+      searchRequest = $.ajax({
+        method: 'GET',
+        url: `${url}api/v1/items`,
+        data: {
+          [SEARCH_PARAM]: query,
+          limit: SEARCH_GRID_LIMIT
+        },
+        dataType: 'json',
+        success: function (res) {
+          if (!res.success) return closeSearchResults();
+          const rows = res.rows || [];
+          renderSearchResults(rows.slice(0, SEARCH_DROPDOWN_LIMIT));
+          renderFilteredGrid(rows);
+        },
+        error: function (jqXHR, textStatus) {
+          if (textStatus === 'abort') return; // ignore aborted/stale requests
+          $('#searchResults')
+            .html('<div class="search-item search-no-results">Search failed. Try again.</div>')
+            .show();
+          makeRoomForDropdown();
+        }
+      });
+    }, 300); // debounce so we don't hit the API on every keystroke
+  });
+
+  // close dropdown when clicking outside the search box
+  $(document).on('click', function (e) {
+    if (!$(e.target).closest('.search-wrapper').length) {
+      closeSearchResults();
+    }
+  });
+
+  // close dropdown on Escape, keep focus in the input
+  $(document).on('keydown', '#productSearch', function (e) {
+    if (e.key === 'Escape') closeSearchResults();
   });
 });

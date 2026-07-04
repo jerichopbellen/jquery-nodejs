@@ -13,11 +13,130 @@
   <link
     rel="stylesheet"
     href="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.16.1/sweetalert2.css"
-    integrity="sha512-fjO3Vy3QodX9c6G9AUmr6WuIaEPdGRxBjD7gjatG5gGylzYyrEq3U0q+smkG6CwIY0L8XALRFHh4KPHig0Q1ug=="
-    crossorigin="anonymous"
-    referrerpolicy="no-referrer"
   />
   <link rel="stylesheet" href="css/style.css" />
+
+  <style>
+    #backToTop {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 48px;
+      height: 48px;
+      z-index: 999;
+      font-size: 1.1rem;
+      line-height: 1;
+    }
+
+    /* --- Search / Autocomplete --- */
+    .shop-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      transition: margin-bottom 0.15s ease;
+    }
+
+    .shop-header-row h1 {
+      margin-bottom: 0;
+    }
+
+    .search-wrapper {
+      position: relative;
+      width: 320px;
+      max-width: 100%;
+      margin-left: auto; /* keeps it pinned right even if it wraps to its own line */
+    }
+
+    #productSearch {
+      border: 1px solid #1a2340; /* navy */
+      border-radius: 4px;
+      padding: 10px 14px;
+    }
+
+    #productSearch:focus {
+      border-color: #b08d57; /* brass */
+      box-shadow: 0 0 0 0.2rem rgba(176, 141, 87, 0.25);
+    }
+
+    .search-dropdown {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #fdfaf3; /* ivory */
+      border: 1px solid #1a2340; /* navy */
+      border-top: none;
+      max-height: 360px;
+      overflow-y: auto;
+      z-index: 1050;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+      border-radius: 0 0 4px 4px;
+      width: 100%;
+    }
+
+    .search-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 14px;
+      cursor: pointer;
+      border-bottom: 1px solid #eee;
+    }
+
+    .search-item:last-child {
+      border-bottom: none;
+    }
+
+    .search-item:hover {
+      background: #b08d57; /* brass */
+      color: #fff;
+    }
+
+    .search-item img {
+      width: 36px;
+      height: 36px;
+      object-fit: contain;
+      border-radius: 4px;
+      background: #fff;
+      flex-shrink: 0;
+    }
+
+    .search-item-info {
+      overflow: hidden;
+    }
+
+    .search-item-name {
+      font-size: 0.9rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .search-item-price {
+      font-size: 0.8rem;
+      color: #1a2340;
+    }
+
+    .search-item:hover .search-item-price {
+      color: #fff;
+    }
+
+    .search-no-results {
+      cursor: default;
+      color: #999;
+      justify-content: center;
+    }
+
+    .search-no-results:hover {
+      background: none;
+      color: #999;
+    }
+  </style>
 
   <script src="https://code.jquery.com/jquery-3.6.4.min.js"
     integrity="sha256-oP6HI9z1XaZNBrJURtCoUT5SUnxFr8s3BzRl+cbzUq8="
@@ -30,9 +149,6 @@
     crossorigin="anonymous"></script>
   <script
     src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.16.1/sweetalert2.min.js"
-    integrity="sha512-YmSRG9B6v5D99yYntg3KzL6K0VwW8hZreXpiz8t/fU9M6Iq79UBy/wJbVb94Z9V7R8NlRMDNqgU91f7wKCA=="
-    crossorigin="anonymous"
-    referrerpolicy="no-referrer"
   ></script>
 
   <script src="js/header.js"></script>
@@ -41,8 +157,44 @@
 <body>
   <div id="header"></div>
   <div class="container my-5">
-    <h1>Shop Products</h1>
+    <div class="shop-header-row">
+      <h1>Shop Products</h1>
+
+      <!-- Search / Autocomplete -->
+      <div class="search-wrapper">
+        <input
+          type="text"
+          id="productSearch"
+          class="form-control"
+          placeholder="Search products..."
+        />
+        <div id="searchResults" class="search-dropdown"></div>
+      </div>
+    </div>
+
     <div id="items"></div>
+
+    <!-- Loading spinner shown while fetching a page -->
+    <div id="itemsLoading" class="text-center py-4 d-none">
+      <div class="spinner-border text-primary" role="status">
+        <span class="sr-only">Loading...</span>
+      </div>
+      <p class="text-muted mt-2 mb-0">Loading more products...</p>
+    </div>
+
+    <!-- Shown only if a page request fails -->
+    <div id="itemsError" class="text-center py-4 d-none">
+      <p class="text-danger mb-2">Failed to load products.</p>
+      <button type="button" id="itemsRetryBtn" class="btn btn-outline-primary btn-sm">Retry</button>
+    </div>
+
+    <!-- Shown once there are no more pages left -->
+    <div id="itemsEnd" class="text-center py-4 d-none">
+      <p class="text-muted mb-0">You've reached the end — no more products to show.</p>
+    </div>
   </div>
+
+  <!-- Back to top button, appears after scrolling down -->
+  <button id="backToTop" class="btn btn-secondary rounded-circle d-none">↑</button>
 </body>
 </html>
