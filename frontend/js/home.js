@@ -1,5 +1,10 @@
 $(document).ready(function () {
   const url = 'http://localhost:5000/';
+  const PAGE_LIMIT = 12;
+
+  let currentPage = 1;
+  let isLoading = false;
+  let hasMore = true;
 
   const getCart = () => JSON.parse(localStorage.getItem('cart') || '[]');
   const saveCart = (cart) => localStorage.setItem('cart', JSON.stringify(cart));
@@ -36,50 +41,110 @@ $(document).ready(function () {
 
   renderCartBadge();
 
-  // 1. Fetch and render items on the home page grid
-  $.ajax({
-    method: 'GET',
-    url: `${url}api/v1/items`,
-    dataType: 'json',
-    success: function (res) {
-      if (!res.success || !res.rows) return;
+  function buildItemCard(item) {
+    let imageArray = [];
+    try {
+      imageArray = typeof item.images === 'string' ? JSON.parse(item.images) : (item.images || []);
+    } catch (e) {
+      imageArray = [];
+    }
 
-      let html = '<div class="row">';
-      res.rows.forEach((item) => {
-        let imageArray = [];
-        try {
-          // Safe JSON extraction from the stringified column field
-          imageArray = typeof item.images === 'string' ? JSON.parse(item.images) : (item.images || []);
-        } catch (e) {
-          imageArray = [];
+    const primaryImg = (imageArray && imageArray.length > 0) ? imageArray[0] : 'images/default-gadget.jpg';
+    const itemImgSrc = `${url}${primaryImg}`;
+
+    return `
+      <div class="col-md-4 mb-4">
+        <div class="card h-100 shadow-sm">
+          <img class="card-img-top p-3" src="${itemImgSrc}" alt="${item.description}" style="height: 200px; object-fit: contain;">
+          <div class="card-body d-flex flex-column">
+            <h5 class="card-title text-truncate">${item.description}</h5>
+            <p class="card-text text-muted mb-1"><small>Brand: ${item.brand} | Category: ${item.category}</small></p>
+            <h4 class="text-primary mt-auto">₱${Number(item.sell_price).toFixed(2)}</h4>
+            <button class="btn btn-outline-primary btn-block mt-3 btn-view-details" data-id="${item.item_id}">
+              View Details
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // 1. Fetch and render items on the home page grid, one page at a time
+  function loadItems() {
+    if (isLoading || !hasMore) return;
+    isLoading = true;
+    $('#itemsLoading').removeClass('d-none');
+    $('#itemsError').addClass('d-none');
+
+    $.ajax({
+      method: 'GET',
+      url: `${url}api/v1/items?page=${currentPage}&limit=${PAGE_LIMIT}`,
+      dataType: 'json',
+      success: function (res) {
+        if (!res.success || !res.rows) return;
+
+        // First page: replace the "row" wrapper fresh; later pages: append into it
+        if (currentPage === 1) {
+          $('#items').html('<div class="row" id="itemsRow"></div>');
+          if (res.rows.length === 0) {
+            $('#itemsRow').html('<div class="col-12"><p class="text-muted text-center py-5">No products found.</p></div>');
+          }
         }
 
-        // Pull the first entry as the primary display card thumbnail image
-        const primaryImg = (imageArray && imageArray.length > 0) ? imageArray[0] : 'images/default-gadget.jpg';
-        const itemImgSrc = `${url}${primaryImg}`;
+        const cardsHtml = res.rows.map(buildItemCard).join('');
+        $('#itemsRow').append(cardsHtml);
 
-        html += `
-          <div class="col-md-4 mb-4">
-            <div class="card h-100 shadow-sm">
-              <img class="card-img-top p-3" src="${itemImgSrc}" alt="${item.description}" style="height: 200px; object-fit: contain;">
-              <div class="card-body d-flex flex-column">
-                <h5 class="card-title text-truncate">${item.description}</h5>
-                <p class="card-text text-muted mb-1"><small>Brand: ${item.brand} | Category: ${item.category}</small></p>
-                <h4 class="text-primary mt-auto">₱${Number(item.sell_price).toFixed(2)}</h4>
-                <button class="btn btn-outline-primary btn-block mt-3 btn-view-details" data-id="${item.item_id}">
-                  View Details
-                </button>
-              </div>
-            </div>
-          </div>
-        `;
-      });
-      html += '</div>';
-      $('#items').html(html);
-    },
-    error: function () {
-      $('#items').html('<p class="text-danger">Failed to load products.</p>');
+        hasMore = res.pagination ? res.pagination.hasMore : false;
+        currentPage++;
+
+        if (!hasMore) {
+          $('#itemsEnd').removeClass('d-none');
+        }
+      },
+      error: function () {
+        $('#itemsError').removeClass('d-none');
+      },
+      complete: function () {
+        isLoading = false;
+        $('#itemsLoading').addClass('d-none');
+      }
+    });
+  }
+
+  // --- Infinite scroll via scroll event listener ---
+  // Checks how close the user is to the bottom of the page on every scroll,
+  // and loads the next page once they're within SCROLL_THRESHOLD pixels of it.
+  const SCROLL_THRESHOLD = 250; // start loading a bit before the actual bottom, for smoothness
+
+  function isNearBottom() {
+    const scrollTop = $(window).scrollTop();
+    const windowHeight = $(window).height();
+    const docHeight = $(document).height();
+    return scrollTop + windowHeight >= docHeight - SCROLL_THRESHOLD;
+  }
+
+  $(window).on('scroll', function () {
+    if (isNearBottom()) {
+      loadItems();
     }
+  });
+
+  // manual retry button (shown only if a request fails)
+  $(document).on('click', '#itemsRetryBtn', function () {
+    loadItems();
+  });
+
+  // initial load
+  loadItems();
+
+  // --- Back to top button ---
+  $(window).on('scroll', function () {
+    if ($(window).scrollTop() > 400) $('#backToTop').removeClass('d-none');
+    else $('#backToTop').addClass('d-none');
+  });
+
+  $(document).on('click', '#backToTop', function () {
+    $('html, body').animate({ scrollTop: 0 }, 400);
   });
 
   // 2. View details click handling matching dynamic image arrays
