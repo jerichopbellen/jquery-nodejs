@@ -14,11 +14,34 @@ $(document).ready(function () {
       .replace(/'/g, '&#039;');
   }
 
-  // Generates the shopping cart item badge dynamically
+  // ICON-ONLY nav links (Home + Cart), matching the sidebar's stroke-style SVGs.
+  // title="" gives a native tooltip on hover so the icons stay identifiable
+  // without needing visible text labels.
+  const homeIconHtml = `
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      <polyline points="9 22 9 12 15 12 15 22"/>
+    </svg>
+  `;
+
+  const cartIconHtml = `
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="9" cy="21" r="1"/>
+      <circle cx="20" cy="21" r="1"/>
+      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+    </svg>
+  `;
+
+  const loginIconHtml = `
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+      <circle cx="12" cy="7" r="4"/>
+    </svg>
+  `;
   function cartBadgeHtml() {
     const count = getCartCount();
     const style = count > 0 ? '' : 'style="display:none;"';
-    return `Cart 🛒 <span id="itemCount" class="badge badge-danger" ${style}>${count}</span>`;
+    return `${cartIconHtml}<span id="itemCount" class="badge badge-danger" ${style}>${count}</span>`;
   }
 
   // Main rendering engine for the navigation bar content
@@ -29,9 +52,9 @@ $(document).ready(function () {
     // 1. View configuration for UNAUTHENTICATED users
     if (!isLoggedIn()) {
       $nav.html(`
-        <li class="nav-item"><a class="nav-link" href="home.html">Home</a></li>
-        <li class="nav-item"><a class="nav-link" href="cart.html">${cartBadgeHtml()}</a></li>
-        <li class="nav-item"><a class="nav-link" href="login.html">Login</a></li>
+        <li class="nav-item"><a class="nav-link" href="home.html" title="Home">${homeIconHtml}</a></li>
+        <li class="nav-item"><a class="nav-link" href="cart.html" title="Cart">${cartBadgeHtml()}</a></li>
+        <li class="nav-item"><a class="nav-link" href="login.html">${loginIconHtml}Login</a></li>
       `);
       return;
     }
@@ -56,8 +79,8 @@ $(document).ready(function () {
     }
 
     $nav.html(`
-      <li class="nav-item"><a class="nav-link" href="home.html">Home</a></li>
-      <li class="nav-item"><a class="nav-link" href="cart.html">${cartBadgeHtml()}</a></li>
+      <li class="nav-item"><a class="nav-link" href="home.html" title="Home">${homeIconHtml}</a></li>
+      <li class="nav-item"><a class="nav-link" href="cart.html" title="Cart">${cartBadgeHtml()}</a></li>
       <li class="nav-item dropdown">
         <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
           ${safeName}

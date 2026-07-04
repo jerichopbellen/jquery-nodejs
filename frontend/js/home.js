@@ -41,6 +41,48 @@ $(document).ready(function () {
 
   renderCartBadge();
 
+  // ============================================================
+  // Star rating helpers
+  // ============================================================
+
+  function buildStarsHtml(avgRating, totalReviews) {
+    const rating = Number(avgRating) || 0;
+    let starsHtml = '';
+    for (let i = 1; i <= 5; i++) {
+      if (rating >= i) {
+        starsHtml += '<i class="fas fa-star text-warning"></i>';
+      } else if (rating >= i - 0.5) {
+        starsHtml += '<i class="fas fa-star-half-alt text-warning"></i>';
+      } else {
+        starsHtml += '<i class="far fa-star text-warning"></i>';
+      }
+    }
+    const reviewText = totalReviews > 0
+      ? `<span class="text-muted small ml-1">${rating.toFixed(1)} (${totalReviews})</span>`
+      : `<span class="text-muted small ml-1">No reviews yet</span>`;
+    return `<div class="mb-1">${starsHtml}${reviewText}</div>`;
+  }
+
+  function buildStaticStarsHtml(rating) {
+    let html = '';
+    for (let i = 1; i <= 5; i++) {
+      html += i <= rating
+        ? '<i class="fas fa-star text-warning"></i>'
+        : '<i class="far fa-star text-warning"></i>';
+    }
+    return html;
+  }
+
+  function buildStarInputHtml(selected = 0) {
+    let html = '<div class="star-input" data-rating="' + selected + '">';
+    for (let i = 1; i <= 5; i++) {
+      const filled = i <= selected ? 'fas' : 'far';
+      html += `<i class="${filled} fa-star text-warning star-pick" data-value="${i}" style="cursor:pointer; font-size:1.3rem; margin-right:2px;"></i>`;
+    }
+    html += '</div>';
+    return html;
+  }
+
   function buildItemCard(item) {
     let imageArray = [];
     try {
@@ -58,6 +100,7 @@ $(document).ready(function () {
           <img class="card-img-top p-3" src="${itemImgSrc}" alt="${item.description}" style="height: 200px; object-fit: contain;">
           <div class="card-body d-flex flex-column">
             <h5 class="card-title text-truncate">${item.description}</h5>
+            ${buildStarsHtml(item.averageRating, item.totalReviews)}
             <p class="card-text text-muted mb-1"><small>Brand: ${item.brand} | Category: ${item.category}</small></p>
             <h4 class="text-primary mt-auto">₱${Number(item.sell_price).toFixed(2)}</h4>
             <button class="btn btn-outline-primary btn-block mt-3 btn-view-details" data-id="${item.item_id}">
@@ -83,7 +126,6 @@ $(document).ready(function () {
       success: function (res) {
         if (!res.success || !res.rows) return;
 
-        // First page: replace the "row" wrapper fresh; later pages: append into it
         if (currentPage === 1) {
           $('#items').html('<div class="row" id="itemsRow"></div>');
           if (res.rows.length === 0) {
@@ -111,10 +153,7 @@ $(document).ready(function () {
     });
   }
 
-  // --- Infinite scroll via scroll event listener ---
-  // Checks how close the user is to the bottom of the page on every scroll,
-  // and loads the next page once they're within SCROLL_THRESHOLD pixels of it.
-  const SCROLL_THRESHOLD = 250; // start loading a bit before the actual bottom, for smoothness
+  const SCROLL_THRESHOLD = 250;
 
   function isNearBottom() {
     const scrollTop = $(window).scrollTop();
@@ -124,21 +163,18 @@ $(document).ready(function () {
   }
 
   $(window).on('scroll', function () {
-    if (isSearchActive) return; // don't auto-load more pages while a search filter is applied
+    if (isSearchActive) return;
     if (isNearBottom()) {
       loadItems();
     }
   });
 
-  // manual retry button (shown only if a request fails)
   $(document).on('click', '#itemsRetryBtn', function () {
     loadItems();
   });
 
-  // initial load
   loadItems();
 
-  // --- Back to top button ---
   $(window).on('scroll', function () {
     if ($(window).scrollTop() > 400) $('#backToTop').removeClass('d-none');
     else $('#backToTop').addClass('d-none');
@@ -173,7 +209,6 @@ $(document).ready(function () {
           imageArray.push('images/default-gadget.jpg');
         }
 
-        // Build out slide items inside a clean interactive responsive carousel
         let carouselIndicators = '';
         let carouselItems = '';
 
@@ -189,7 +224,6 @@ $(document).ready(function () {
           `;
         });
 
-        // Parse structured data specifications loop block mappings
         let specsHtml = '';
         let specsObj = item.specs;
         if (typeof specsObj === 'string') {
@@ -235,6 +269,7 @@ $(document).ready(function () {
             <div class="col-md-6">
               <p class="text-muted mb-1">Brand: <strong>${item.brand}</strong></p>
               <p class="text-muted mb-3">Category: <strong>${item.category}</strong></p>
+              ${buildStarsHtml(item.averageRating, item.totalReviews)}
               <h3 class="text-primary mb-3">₱${Number(item.sell_price).toFixed(2)}</h3>
               <p>Available Stock: <span id="modalStockDisplay" class="font-weight-bold">${stock}</span></p>
               ${specsHtml}
@@ -246,17 +281,214 @@ $(document).ready(function () {
               ${stock <= 0 ? '<div class="alert alert-danger p-2 text-center font-weight-bold mt-4">Out of Stock</div>' : ''}
             </div>
           </div>
+
+          <hr class="mt-4">
+          <div id="reviewsSection">
+            <h5>Customer Reviews</h5>
+            <div id="reviewFormContainer"></div>
+            <div id="reviewsList" class="mt-3"><p class="text-muted">Loading reviews...</p></div>
+          </div>
         `);
 
-        // Hide or enable checkout buttons depending on real-time count structures
         if (stock <= 0) $('#confirmAddToCart').hide();
         else $('#confirmAddToCart').show();
 
         $('#productDetailsModal').modal('show');
+        loadReviewsSection(item.item_id);
       },
       error: function () {
         Swal.fire({ icon: 'error', text: 'Could not fetch item specifications.' });
       }
+    });
+  });
+
+  // ============================================================
+  // Reviews
+  // ============================================================
+
+  function loadReviewsSection(itemId) {
+    const token = sessionStorage.getItem('token');
+
+    $.ajax({
+      method: 'GET',
+      url: `${url}api/v1/items/${itemId}/reviews`,
+      dataType: 'json',
+      success: function (res) {
+        renderReviewsList(res.reviews || []);
+      },
+      error: function () {
+        $('#reviewsList').html('<p class="text-danger">Failed to load reviews.</p>');
+      }
+    });
+
+    if (!token) {
+      $('#reviewFormContainer').html('<p class="text-muted"><a href="login.html">Log in</a> to write a review.</p>');
+      return;
+    }
+
+    $.ajax({
+      method: 'GET',
+      url: `${url}api/v1/items/${itemId}/reviews/eligibility`,
+      headers: { Authorization: `Bearer ${token}` },
+      dataType: 'json',
+      success: function (res) {
+        if (res.alreadyReviewed) {
+          renderMyReviewCard(itemId, res.existingReview);
+        } else if (res.canReview) {
+          renderReviewForm(itemId, null);
+        } else {
+          $('#reviewFormContainer').html('<p class="text-muted">Only customers who received this item can leave a review.</p>');
+        }
+      },
+      error: function () {
+        $('#reviewFormContainer').empty();
+      }
+    });
+  }
+
+  function renderReviewsList(reviews) {
+    const $list = $('#reviewsList');
+    if (!reviews || reviews.length === 0) {
+      $list.html('<p class="text-muted">No reviews yet. Be the first to review this product!</p>');
+      return;
+    }
+
+    const html = reviews.map((r) => `
+      <div class="border-bottom py-2">
+        <div class="d-flex justify-content-between">
+          <strong>${r.reviewerName}</strong>
+          <small class="text-muted">${new Date(r.createdAt).toLocaleDateString()}</small>
+        </div>
+        <div>${buildStaticStarsHtml(r.rating)}</div>
+        ${r.comment ? `<p class="mb-0 mt-1">${$('<div>').text(r.comment).html()}</p>` : ''}
+      </div>
+    `).join('');
+
+    $list.html(html);
+  }
+
+  function renderMyReviewCard(itemId, review) {
+    $('#reviewFormContainer').html(`
+      <div class="alert alert-light border">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <strong>Your Review</strong>
+            <div>${buildStaticStarsHtml(review.rating)}</div>
+            ${review.comment ? `<p class="mb-0 mt-1">${$('<div>').text(review.comment).html()}</p>` : ''}
+          </div>
+          <div>
+            <button class="btn btn-sm btn-outline-secondary btn-edit-review" data-id="${review.reviewId}" data-rating="${review.rating}" data-comment="${$('<div>').text(review.comment || '').html()}">Edit</button>
+            <button class="btn btn-sm btn-outline-danger btn-delete-review" data-id="${review.reviewId}" data-item-id="${itemId}">Delete</button>
+          </div>
+        </div>
+      </div>
+    `);
+  }
+
+  function renderReviewForm(itemId, existingReview) {
+    const isEdit = !!existingReview;
+    const selectedRating = existingReview ? existingReview.rating : 0;
+    const existingComment = existingReview ? existingReview.comment || '' : '';
+
+    $('#reviewFormContainer').html(`
+      <div class="card card-body bg-light">
+        <label class="mb-1">${isEdit ? 'Edit your review' : 'Write a review'}</label>
+        ${buildStarInputHtml(selectedRating)}
+        <textarea id="reviewComment" class="form-control mt-2" rows="2" placeholder="Share your thoughts about this product (optional)">${existingComment}</textarea>
+        <div class="mt-2">
+          <button class="btn btn-primary btn-sm" id="submitReviewBtn" data-item-id="${itemId}" data-review-id="${isEdit ? existingReview.reviewId : ''}">
+            ${isEdit ? 'Update Review' : 'Submit Review'}
+          </button>
+          ${isEdit ? '<button class="btn btn-secondary btn-sm ml-1" id="cancelEditReviewBtn">Cancel</button>' : ''}
+        </div>
+      </div>
+    `);
+  }
+
+  $(document).on('click', '.star-pick', function () {
+    const value = $(this).data('value');
+    const $container = $(this).closest('.star-input');
+    $container.attr('data-rating', value);
+    $container.find('.star-pick').each(function () {
+      const v = $(this).data('value');
+      $(this).toggleClass('fas', v <= value).toggleClass('far', v > value);
+    });
+  });
+
+  $(document).on('click', '#submitReviewBtn', function () {
+    const token = sessionStorage.getItem('token');
+    const itemId = $(this).data('item-id');
+    const reviewId = $(this).data('review-id');
+    const rating = Number($('#reviewFormContainer .star-input').attr('data-rating')) || 0;
+    const comment = $('#reviewComment').val().trim();
+
+    if (!rating) {
+      return Swal.fire({ icon: 'warning', text: 'Please select a star rating.' });
+    }
+
+    const isEdit = !!reviewId;
+    const ajaxUrl = isEdit
+      ? `${url}api/v1/reviews/${reviewId}`
+      : `${url}api/v1/items/${itemId}/reviews`;
+    const method = isEdit ? 'PUT' : 'POST';
+
+    $.ajax({
+      method,
+      url: ajaxUrl,
+      headers: { Authorization: `Bearer ${token}` },
+      contentType: 'application/json',
+      data: JSON.stringify({ rating, comment }),
+      dataType: 'json',
+      success: function () {
+        Swal.fire({ icon: 'success', text: isEdit ? 'Review updated!' : 'Review submitted!', timer: 1200, showConfirmButton: false });
+        loadReviewsSection(itemId);
+      },
+      error: function (err) {
+        Swal.fire({ icon: 'error', text: err.responseJSON?.message || 'Failed to submit review.' });
+      }
+    });
+  });
+
+  $(document).on('click', '.btn-edit-review', function () {
+    const reviewId = $(this).data('id');
+    const rating = $(this).data('rating');
+    const comment = $(this).data('comment');
+    const itemId = $('#detailsItemId').val();
+    renderReviewForm(itemId, { reviewId, rating, comment });
+  });
+
+  $(document).on('click', '#cancelEditReviewBtn', function () {
+    const itemId = $('#detailsItemId').val();
+    loadReviewsSection(itemId);
+  });
+
+  $(document).on('click', '.btn-delete-review', function () {
+    const reviewId = $(this).data('id');
+    const itemId = $(this).data('item-id');
+    const token = sessionStorage.getItem('token');
+
+    Swal.fire({
+      icon: 'warning',
+      title: 'Delete your review?',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete it',
+      confirmButtonColor: '#e74c3c'
+    }).then((result) => {
+      if (!result.isConfirmed) return;
+
+      $.ajax({
+        method: 'DELETE',
+        url: `${url}api/v1/reviews/${reviewId}`,
+        headers: { Authorization: `Bearer ${token}` },
+        dataType: 'json',
+        success: function () {
+          Swal.fire({ icon: 'success', text: 'Review deleted.', timer: 1000, showConfirmButton: false });
+          loadReviewsSection(itemId);
+        },
+        error: function (err) {
+          Swal.fire({ icon: 'error', text: err.responseJSON?.message || 'Failed to delete review.' });
+        }
+      });
     });
   });
 
@@ -272,7 +504,6 @@ $(document).ready(function () {
     const description = $('#productDetailsModalLabel').text();
     const price = parseFloat($('#detailsItemPrice').val() || '0');
     
-    // Fallback cleanly to the active slide's image path for shopping cart listing reference entries
     const image = $('#productDetailsModalBody .carousel-item.active img').attr('src') || '';
 
     const cart = getCart();
@@ -296,34 +527,22 @@ $(document).ready(function () {
   // ============================================================
   // 4. Search / Autocomplete
   // ============================================================
-  // NOTE: this assumes your backend supports a `search` query param
-  // on the existing items endpoint, e.g.:
-  //   GET /api/v1/items?search=iphone&limit=8
-  // returning the same { success, rows } shape as the paginated list.
-  // If your backend uses a different param name or a dedicated
-  // /search endpoint, just change SEARCH_URL / SEARCH_PARAM below.
 
   const SEARCH_PARAM = 'search';
-  const SEARCH_DROPDOWN_LIMIT = 8;   // how many rows show in the small dropdown
-  const SEARCH_GRID_LIMIT = 48;      // how many rows filter into the main grid below
+  const SEARCH_DROPDOWN_LIMIT = 8;
+  const SEARCH_GRID_LIMIT = 48;
   let searchDebounce;
-  let searchRequest; // holds in-flight ajax request so we can abort stale ones
-  let isSearchActive = false; // true while a search filter is applied to the main grid
+  let searchRequest;
+  let isSearchActive = false;
 
   function closeSearchResults() {
     $('#searchResults').hide().empty();
-    $('.shop-header-row').css('margin-bottom', ''); // back to default spacing
   }
 
-  // Expands the header row's bottom margin so the open dropdown has room
-  // to display without covering the product cards below it.
   function makeRoomForDropdown() {
-    const dropdownHeight = $('#searchResults').outerHeight() || 0;
-    $('.shop-header-row').css('margin-bottom', (dropdownHeight + 32) + 'px');
+    // intentionally left as a no-op
   }
 
-  // Renders search matches directly into the main product grid, reusing the
-  // same card markup as the normal infinite-scroll grid.
   function renderFilteredGrid(rows) {
     isSearchActive = true;
     $('#itemsEnd').addClass('d-none');
@@ -338,7 +557,6 @@ $(document).ready(function () {
     $('#items').html(`<div class="row" id="itemsRow">${cardsHtml}</div>`);
   }
 
-  // Leaves search mode and restores the normal infinite-scroll grid from page 1
   function restoreDefaultGrid() {
     if (!isSearchActive) return;
     isSearchActive = false;
@@ -385,8 +603,6 @@ $(document).ready(function () {
         $('#productSearch').val('');
         $('.btn-view-details[data-id="' + item.item_id + '"]').trigger('click');
 
-        // in case the item isn't currently rendered in the grid (e.g. not yet
-        // loaded by infinite scroll), trigger the modal directly instead
         if ($('.btn-view-details[data-id="' + item.item_id + '"]').length === 0) {
           $.ajax({
             method: 'GET',
@@ -395,7 +611,6 @@ $(document).ready(function () {
             success: function (res) {
               if (!res.success || !res.data) return;
               $(document).trigger('showItemDetails', [res.data]);
-              // Reuse existing details logic by faking a click target with the id
               const $fakeBtn = $(`<button class="btn-view-details d-none" data-id="${item.item_id}"></button>`).appendTo('body');
               $fakeBtn.trigger('click');
               $fakeBtn.remove();
@@ -417,15 +632,16 @@ $(document).ready(function () {
     clearTimeout(searchDebounce);
     if (searchRequest && searchRequest.abort) searchRequest.abort();
 
+    $('.brand-nav-link').removeClass('active');
+    $('.brand-nav-link[data-brand-id=""]').addClass('active');
+
     if (query.length < 2) {
       closeSearchResults();
-      restoreDefaultGrid(); // back to the normal infinite-scroll list
+      restoreDefaultGrid();
       return;
     }
 
     searchDebounce = setTimeout(function () {
-      // Fetch a larger batch once, then use it for both the dropdown
-      // (first few) and the full filtered grid below.
       searchRequest = $.ajax({
         method: 'GET',
         url: `${url}api/v1/items`,
@@ -441,25 +657,81 @@ $(document).ready(function () {
           renderFilteredGrid(rows);
         },
         error: function (jqXHR, textStatus) {
-          if (textStatus === 'abort') return; // ignore aborted/stale requests
+          if (textStatus === 'abort') return;
           $('#searchResults')
             .html('<div class="search-item search-no-results">Search failed. Try again.</div>')
             .show();
           makeRoomForDropdown();
         }
       });
-    }, 300); // debounce so we don't hit the API on every keystroke
+    }, 300);
   });
 
-  // close dropdown when clicking outside the search box
   $(document).on('click', function (e) {
     if (!$(e.target).closest('.search-wrapper').length) {
       closeSearchResults();
     }
   });
 
-  // close dropdown on Escape, keep focus in the input
   $(document).on('keydown', '#productSearch', function (e) {
     if (e.key === 'Escape') closeSearchResults();
+  });
+
+  // ============================================================
+  // 5. Brand Nav Bar
+  // ============================================================
+
+  function loadBrands() {
+    $.ajax({
+      method: 'GET',
+      url: `${url}api/v1/brands`,
+      dataType: 'json',
+      success: function (brands) {
+        if (!Array.isArray(brands) || brands.length === 0) return;
+
+        const linksHtml = brands.map((brand) => {
+          const id = brand.brand_id ?? brand.id;
+          return `<li><a href="#" class="brand-nav-link" data-brand-id="${id}">${brand.name}</a></li>`;
+        }).join('');
+
+        $('#brandNavList').append(linksHtml);
+      },
+      error: function () {
+        console.error('Failed to load brands for the nav bar.');
+      }
+    });
+  }
+
+  loadBrands();
+
+  $(document).on('click', '.brand-nav-link', function (e) {
+    e.preventDefault();
+
+    const brandId = $(this).data('brand-id');
+
+    $('.brand-nav-link').removeClass('active');
+    $(this).addClass('active');
+
+    $('#productSearch').val('');
+    closeSearchResults();
+
+    if (!brandId) {
+      restoreDefaultGrid();
+      return;
+    }
+
+    $.ajax({
+      method: 'GET',
+      url: `${url}api/v1/items`,
+      data: { brand_id: brandId, limit: 100 },
+      dataType: 'json',
+      success: function (res) {
+        if (!res.success) return;
+        renderFilteredGrid(res.rows || []);
+      },
+      error: function () {
+        Swal.fire({ icon: 'error', text: 'Could not load products for this brand.' });
+      }
+    });
   });
 });

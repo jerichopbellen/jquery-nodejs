@@ -64,6 +64,10 @@
     opacity: .85;
   }
 
+  /* ---- KPI cards ----
+     UNIFIED: all four cards now share one navy/brass/ivory palette instead of
+     four separate hues (blue/tan/green/pink). "Total Products" gets a brass
+     accent to draw the eye as the standout figure; the rest are plain navy. */
   .kpi-card {
     background: #fff;
     border-radius: .5rem;
@@ -72,32 +76,34 @@
     box-shadow: 0 1px 3px rgba(0,0,0,.08);
     margin-bottom: 1rem;
     height: 100%;
+    border: 1px solid #e5ddd0; /* --border-color */
   }
   .kpi-card .kpi-label {
     font-size: .75rem;
     letter-spacing: .06em;
     text-transform: uppercase;
-    color: #8a8f9c;
+    color: #736b5e; /* --text-secondary */
     font-weight: 600;
   }
   .kpi-card .kpi-value {
     font-family: Georgia, 'Times New Roman', serif;
     font-size: 1.8rem;
     font-weight: 700;
-    color: #2c3550;
+    color: #2c3550; /* --primary-color, used for all KPI values */
     margin-top: .25rem;
   }
-  .kpi-users      { border: 1px solid #c7ccdc; background: #f5f6fa; }
-  .kpi-users      .kpi-value { color: #2c3550; }
-  .kpi-products   { border: 1px solid #e9d7b8; background: #fbf6ec; }
-  .kpi-products   .kpi-value { color: #a8802f; }
-  .kpi-customers  { border: 1px solid #cfe0d1; background: #f3f8f4; }
-  .kpi-customers  .kpi-value { color: #2f9e50; }
-  .kpi-admins     { border: 1px solid #eccac8; background: #fdf3f2; }
-  .kpi-admins     .kpi-value { color: #a94442; }
+  .kpi-card.kpi-accent { background: #f7f3ec; } /* --light-bg tint on the standout card */
+  .kpi-card.kpi-accent .kpi-value { color: #b8935f; } /* --secondary-color (brass) */
 
+  /* ---- Order status cards ----
+     UNIFIED: same navy/brass/ivory treatment as the KPI cards above. The
+     "Total Orders" summary card gets the brass accent to stand out as the
+     headline figure; the four breakdown cards underneath stay plain navy.
+     NOTE: this only affects these dashboard summary boxes — status colors
+     inside any actual orders table are untouched. */
   .status-card {
-    border: 1px solid #d9e6da;
+    border: 1px solid #e5ddd0;
+    background: #fff;
     border-radius: .5rem;
     text-align: center;
     padding: 1rem .5rem;
@@ -108,7 +114,7 @@
     font-size: .75rem;
     letter-spacing: .06em;
     text-transform: uppercase;
-    color: #6c7280;
+    color: #736b5e;
     font-weight: 600;
   }
   .status-card .status-value {
@@ -116,17 +122,10 @@
     font-size: 1.7rem;
     font-weight: 700;
     margin-top: .25rem;
+    color: #2c3550;
   }
-  .status-total   { border-color: #bfe3c4; background: #f3faf4; }
-  .status-total   .status-value { color: #2b6fd6; }
-  .status-processing { border-color: #a9d2ee; background: #eef6fc; }
-  .status-processing .status-value { color: #1f7bc4; }
-  .status-shipped    { border-color: #f3c79a; background: #fdf3ea; }
-  .status-shipped    .status-value { color: #d9772e; }
-  .status-delivered  { border-color: #a6e0d1; background: #edfaf6; }
-  .status-delivered  .status-value { color: #1fa383; }
-  .status-cancelled  { border-color: #f0b4bb; background: #fcedee; }
-  .status-cancelled  .status-value { color: #cc3348; }
+  .status-card.status-accent { background: #f7f3ec; }
+  .status-card.status-accent .status-value { color: #b8935f; }
 
   .mgmt-card {
     display: block;
@@ -150,6 +149,8 @@
   .mgmt-card .mgmt-label { font-size: .85rem; font-weight: 600; }
 
   /* ---- tabbed chart card ---- */
+  /* CHANGED: tabs now use the navy palette instead of a separate bright blue,
+     so this card matches the header/sidebar instead of introducing a new hue. */
   .chart-tabbed-card {
     border-radius: .5rem;
     overflow: hidden;
@@ -157,7 +158,7 @@
   }
   .chart-tabs {
     display: flex;
-    background: #1565e0;
+    background: linear-gradient(135deg, #2c3550, #1c2338);
   }
   .chart-tab-btn {
     flex: 1;
@@ -175,7 +176,7 @@
   .chart-tab-btn:hover { background: rgba(255,255,255,.12); }
   .chart-tab-btn.active {
     background: #fff;
-    color: #1565e0;
+    color: #2c3550;
   }
   .chart-tab-pane { padding: 1.5rem; }
   .chart-tab-pane h6.pane-title {
@@ -277,6 +278,10 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
           <span>Manage Orders</span>
         </a>
+        <a href="admin-reviews.html" class="sidebar-link">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <span>Manage Reviews</span>
+        </a>
         <a href="admin-users.html" class="sidebar-link">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           <span>Manage Users</span>
@@ -319,25 +324,25 @@
       <hr class="section-divider" />
       <div class="row">
         <div class="col-6 col-md-3">
-          <div class="kpi-card kpi-users slide-up">
+          <div class="kpi-card slide-up">
             <div class="kpi-label">Total Users</div>
             <div class="kpi-value" id="statTotalUsers">0</div>
           </div>
         </div>
         <div class="col-6 col-md-3">
-          <div class="kpi-card kpi-products slide-up" style="animation-delay:.06s;">
+          <div class="kpi-card kpi-accent slide-up" style="animation-delay:.06s;">
             <div class="kpi-label">Total Products</div>
             <div class="kpi-value" id="statTotalProducts">0</div>
           </div>
         </div>
         <div class="col-6 col-md-3">
-          <div class="kpi-card kpi-customers slide-up" style="animation-delay:.12s;">
+          <div class="kpi-card slide-up" style="animation-delay:.12s;">
             <div class="kpi-label">Customers</div>
             <div class="kpi-value" id="statCustomers">0</div>
           </div>
         </div>
         <div class="col-6 col-md-3">
-          <div class="kpi-card kpi-admins slide-up" style="animation-delay:.18s;">
+          <div class="kpi-card slide-up" style="animation-delay:.18s;">
             <div class="kpi-label">Admins</div>
             <div class="kpi-value" id="statAdmins">0</div>
           </div>
@@ -349,7 +354,7 @@
       <hr class="section-divider" />
       <div class="row">
         <div class="col-12">
-          <div class="status-card status-total">
+          <div class="status-card status-accent">
             <div class="status-label">Total Orders</div>
             <div class="status-value" id="statTotalOrders">0</div>
           </div>
@@ -357,25 +362,25 @@
       </div>
       <div class="row">
         <div class="col-6 col-md-3">
-          <div class="status-card status-processing">
+          <div class="status-card">
             <div class="status-label">Processing Orders</div>
             <div class="status-value" id="statProcessing">0</div>
           </div>
         </div>
         <div class="col-6 col-md-3">
-          <div class="status-card status-shipped">
+          <div class="status-card">
             <div class="status-label">Shipped Orders</div>
             <div class="status-value" id="statShipped">0</div>
           </div>
         </div>
         <div class="col-6 col-md-3">
-          <div class="status-card status-delivered">
+          <div class="status-card">
             <div class="status-label">Delivered Orders</div>
             <div class="status-value" id="statDelivered">0</div>
           </div>
         </div>
         <div class="col-6 col-md-3">
-          <div class="status-card status-cancelled">
+          <div class="status-card">
             <div class="status-label">Cancelled Orders</div>
             <div class="status-value" id="statCancelled">0</div>
           </div>
