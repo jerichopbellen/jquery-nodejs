@@ -93,46 +93,50 @@ $(document).ready(function () {
   }
 
   function renderDetails(order) {
-    const itemsHtml = (order.items || []).map((item) => `
-      <div class="media mb-3">
-        <div class="mr-3" style="width:60px;">
-          <img src="${item.image ? `${url}${item.image}` : `${url}images/default-gadget.jpg`}" alt="${escapeHtml(item.description)}" class="img-fluid rounded border" />
-        </div>
-        <div class="media-body">
-          <h6 class="mt-0 mb-1">${escapeHtml(item.description)}</h6>
-          <div class="text-muted small">Qty: ${item.quantity}</div>
-          <div class="small text-muted">₱${Number(item.price || 0).toFixed(2)}</div>
+  const itemsHtml = (order.items || []).map((item) => `
+    <div class="media mb-3">
+      <div class="mr-3" style="width:60px;">
+        <img src="${item.image ? `${url}${item.image}` : `${url}images/default-gadget.jpg`}" alt="${escapeHtml(item.description)}" class="img-fluid rounded border" />
+      </div>
+      <div class="media-body">
+        <h6 class="mt-0 mb-1">${escapeHtml(item.description)}</h6>
+        <div class="text-muted small">Qty: ${item.quantity}</div>
+        <div class="small text-muted">₱${Number(item.price || 0).toFixed(2)}</div>
+      </div>
+    </div>
+  `).join('');
+
+  const canCancel = (order.status || '').toLowerCase() === 'processing';
+
+  // new: only build the cancel button markup when the order can actually be cancelled
+  const cancelButtonHtml = canCancel
+    ? `<button class="btn btn-danger cancel-order-btn" data-order-id="${order.orderId}">Cancel Order</button>`
+    : '';
+
+  return `
+    <div class="row">
+      <div class="col-lg-7 mb-4 mb-lg-0">
+        <div class="detail-panel p-3 h-100">
+          <h6 class="mb-3">Items Ordered</h6>
+          ${itemsHtml || '<p class="text-muted mb-0">No items available.</p>'}
         </div>
       </div>
-    `).join('');
-
-    const canCancel = (order.status || '').toLowerCase() === 'processing';
-
-    const cancelButtonHtml = canCancel
-      ? `<button class="btn btn-danger cancel-order-btn" data-order-id="${order.orderId}">Cancel Order</button>`
-      : '';
-
-    return `
-      <div class="row">
-        <div class="col-lg-7 mb-4 mb-lg-0">
-          <div class="detail-panel p-3 h-100">
-            <h6 class="mb-3">Items Ordered</h6>
-            ${itemsHtml || '<p class="text-muted mb-0">No items available.</p>'}
-          </div>
-        </div>
-        <div class="col-lg-5">
-          <div class="detail-panel p-3 h-100">
-            <h6 class="mb-3">Shipping Address</h6>
-            <p class="mb-3">${escapeHtml(order.shippingAddress)}</p>
-            <div class="border-top pt-3 d-flex justify-content-end">
-              ${cancelButtonHtml}
-            </div>
+      <div class="col-lg-5">
+        <div class="detail-panel p-3 h-100">
+          <h6 class="mb-3">Shipping Address</h6>
+          <p class="mb-3">${escapeHtml(order.shippingAddress)}</p>
+          <div class="border-top pt-3 d-flex justify-content-end">
+            ${cancelButtonHtml}
           </div>
         </div>
       </div>
-    `;
+    </div>
+  `;
+
   }
 
+  // fetches a single order's full details (items, shipping address, etc.)
+  // returns the jQuery AJAX promise so callers can chain .done()/.fail()
   function loadOrderDetails(orderId) {
     return $.ajax({
       method: 'GET',
