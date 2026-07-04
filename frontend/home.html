@@ -28,6 +28,59 @@
       line-height: 1;
     }
 
+    /* --- Brand Nav Bar --- */
+    .brand-nav-bar {
+      background: #fdfaf3; /* ivory */
+      border: 1px solid #1a2340; /* navy, matches search input border */
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      transition: margin-bottom 0.15s ease;
+    }
+
+    .brand-nav-list {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem 1.5rem;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      overflow-x: auto;
+    }
+
+    .brand-nav-link {
+      color: #2c3550; /* navy */
+      font-weight: 700;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      text-decoration: none;
+      white-space: nowrap;
+      padding-bottom: 4px;
+      border-bottom: 2px solid transparent;
+      transition: color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .brand-nav-link:hover {
+      color: #b08d57; /* brass */
+      text-decoration: none;
+    }
+
+    .brand-nav-link.active {
+      color: #b08d57;
+      border-bottom-color: #b08d57;
+    }
+
+    /* Search box now lives inside the brand nav bar instead of beside the heading */
+    .brand-nav-bar .search-wrapper {
+      width: 280px;
+      margin-left: 0;
+    }
+
     /* --- Search / Autocomplete --- */
     .shop-header-row {
       display: flex;
@@ -156,20 +209,31 @@
 </head>
 <body>
   <div id="header"></div>
+
+  <!-- Brand Nav Bar: lists brands (like a Zalora-style category bar); clicking
+       one filters the product grid below by that brand. Search box lives
+       here too, on the right, for better organization. -->
+  <nav class="brand-nav-bar">
+    <ul class="brand-nav-list" id="brandNavList">
+      <li><a href="#" class="brand-nav-link active" data-brand-id="">All</a></li>
+      <!-- brand links injected here by home.js -->
+    </ul>
+
+    <div class="search-wrapper">
+      <input
+        type="text"
+        id="productSearch"
+        class="form-control"
+        placeholder="Search products..."
+        autocomplete="off"
+      />
+      <div id="searchResults" class="search-dropdown"></div>
+    </div>
+  </nav>
+
   <div class="container my-5">
     <div class="shop-header-row">
       <h1>Shop Products</h1>
-
-      <!-- Search / Autocomplete -->
-      <div class="search-wrapper">
-        <input
-          type="text"
-          id="productSearch"
-          class="form-control"
-          placeholder="Search products..."
-        />
-        <div id="searchResults" class="search-dropdown"></div>
-      </div>
     </div>
 
     <div id="items"></div>
