@@ -97,6 +97,9 @@ $(document).ready(function () {
         }
       }
     ],
+    columnDefs: [
+      { targets: -1, width: '90px', className: 'text-center' }
+    ],
     columns: [
       { data: 'item_id' },
       {
@@ -170,8 +173,10 @@ $(document).ready(function () {
         searchable: false,
         render: function () {
           return `
-            <button class="btn btn-warning btn-sm btn-edit"><i class="fas fa-edit"></i></button>
-            <button class="btn btn-danger btn-sm btn-delete"><i class="fas fa-trash"></i></button>
+            <div class="d-flex justify-content-center" style="gap:6px; white-space:nowrap;">
+              <button class="btn btn-warning btn-sm btn-edit"><i class="fas fa-edit"></i></button>
+              <button class="btn btn-danger btn-sm btn-delete"><i class="fas fa-trash"></i></button>
+            </div>
           `;
         }
       }
