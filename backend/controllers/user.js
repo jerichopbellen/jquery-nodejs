@@ -1,6 +1,40 @@
 const { User } = require('../models');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const path = require('path');
+
+function splitFullName(fullName) {
+  const normalized = String(fullName || '').trim().replace(/\s+/g, ' ');
+  if (!normalized) {
+    return { firstName: '', lastName: '' };
+  }
+
+  const parts = normalized.split(' ');
+  const firstName = parts.shift() || '';
+  const lastName = parts.join(' ');
+
+  return { firstName, lastName };
+}
+
+function isBcryptHash(value) {
+  return typeof value === 'string' && /^\$2[aby]?\$\d{2}\$/.test(value);
+}
+
+function buildUserProfile(user) {
+  return {
+    userId: user.user_id,
+    name: user.name,
+    email: user.email,
+    avatar: user.avatar || '',
+    firstName: user.first_name || '',
+    lastName: user.last_name || '',
+    addressline: user.addressline || '',
+    phone: user.phone || '',
+    zipcode: user.zipcode || '',
+    role: user.role,
+    isActive: user.is_active
+  };
+}
 
 // 1. REGISTER USER
 const registerUser = async (req, res) => {
@@ -10,6 +44,9 @@ const registerUser = async (req, res) => {
       return res.status(400).json({ success: false, message: 'name, email, password are required' });
     }
 
+    const { firstName, lastName } = splitFullName(name);
+    const fullName = [firstName, lastName].filter(Boolean).join(' ').trim() || name.trim();
+
     const userExists = await User.findOne({ where: { email } });
     if (userExists) {
       return res.status(409).json({ success: false, message: 'Email already registered' });
@@ -18,9 +55,11 @@ const registerUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = await User.create({
-      name,
+      name: fullName,
       email,
       password: hashedPassword,
+      first_name: firstName,
+      last_name: lastName,
       role: 'customer',
       is_active: true
     });
@@ -28,7 +67,15 @@ const registerUser = async (req, res) => {
     return res.status(201).json({
       success: true,
       message: 'Registered successfully',
-      userId: newUser.user_id
+      userId: newUser.user_id,
+      user: {
+        id: newUser.user_id,
+        name: newUser.name,
+        email: newUser.email,
+        firstName: newUser.first_name || '',
+        lastName: newUser.last_name || '',
+        role: newUser.role
+      }
     });
   } catch (e) {
     return res.status(500).json({ success: false, message: e.message });
@@ -56,7 +103,11 @@ const loginUser = async (req, res) => {
       });
     }
 
-    const isPasswordMatched = await bcrypt.compare(password, user.password);
+    const storedPassword = String(user.password || '');
+    const isPasswordMatched = isBcryptHash(storedPassword)
+      ? await bcrypt.compare(password, storedPassword)
+      : password === storedPassword;
+
     if (!isPasswordMatched) {
       return res.status(401).json({ success: false, message: 'Invalid Email or Password' });
     }
@@ -74,6 +125,8 @@ const loginUser = async (req, res) => {
         id: user.user_id,
         name: user.name,
         email: user.email,
+        firstName: user.first_name || '',
+        lastName: user.last_name || '',
         role: user.role
       }
     });
@@ -149,10 +202,69 @@ const updateUserStatus = async (req, res) => {
   }
 };
 
+const getMyProfile = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id, {
+      attributes: [
+        'user_id',
+        'name',
+        'email',
+        'avatar',
+        'first_name',
+        'last_name',
+        'addressline',
+        'phone',
+        'zipcode',
+        'role',
+        'is_active'
+      ]
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    return res.status(200).json({ success: true, data: buildUserProfile(user) });
+  } catch (e) {
+    return res.status(500).json({ success: false, message: e.message });
+  }
+};
+
+const updateMyProfile = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const nextAvatar = req.file ? path.join('images', req.file.filename).replace(/\\/g, '/') : user.avatar;
+
+    await user.update({
+      first_name: req.body.fname ?? user.first_name,
+      last_name: req.body.lname ?? user.last_name,
+      addressline: req.body.addressline ?? user.addressline,
+      phone: req.body.phone ?? user.phone,
+      zipcode: req.body.zipcode ?? user.zipcode,
+      avatar: nextAvatar
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: buildUserProfile(user)
+    });
+  } catch (e) {
+    return res.status(500).json({ success: false, message: e.message });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
   getAllUsers,
   adminUpdateUser,
-  updateUserStatus
+  updateUserStatus,
+  getMyProfile,
+  updateMyProfile
 };
