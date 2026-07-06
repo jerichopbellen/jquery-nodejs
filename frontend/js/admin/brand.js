@@ -19,6 +19,7 @@ $(document).ready(function () {
 
   let currentEditId = null;
 
+  // DataTable Definition
   const table = $('#btable').DataTable({
     ajax: {
       url: `${url}/api/v1/brands`,
@@ -37,6 +38,13 @@ $(document).ready(function () {
         action: function () {
           currentEditId = null;
           $('#bform').trigger('reset');
+
+          // Reset validation errors and remove dynamic Bootstrap classes
+          if (typeof $('#bform').validate === 'function') {
+            $('#bform').validate().resetForm();
+            $('#bform').find('input').removeClass('is-invalid is-valid');
+          }
+
           $('#brandModal .modal-title').text('Create new brand');
           $('#brandUpdate').hide();
           $('#brandSubmit').show();
@@ -61,35 +69,67 @@ $(document).ready(function () {
     ]
   });
 
-  $('#brandSubmit').on('click', function (e) {
-    e.preventDefault();
-
-    const payload = {
-      name: $('#name').val().trim()
-    };
-
-    if (!payload.name) {
-      Swal.fire({ icon: 'warning', text: 'Brand name is required.' });
-      return;
-    }
-
-    $.ajax({
-      method: 'POST',
-      url: `${url}/api/v1/brands`,
-      contentType: 'application/json',
-      data: JSON.stringify(payload),
-      headers: { Authorization: `Bearer ${token}` },
-      success: function () {
-        $('#brandModal').modal('hide');
-        table.ajax.reload(null, false);
-        Swal.fire({ icon: 'success', text: 'Brand created successfully!' });
-      },
-      error: function (error) {
-        Swal.fire({ icon: 'error', text: error.responseJSON?.message || 'Creation failed.' });
+  // jQuery Validation Module Configured for Bootstrap 4
+  $("#bform").validate({
+    rules: {
+      name: {
+        required: true,
+        minlength: 2
       }
-    });
+    },
+    messages: {
+      name: {
+        required: "Please enter a brand name.",
+        minlength: "Brand name must be at least 2 characters long."
+      }
+    },
+    errorElement: "small",
+    errorClass: "text-danger d-block mt-1 font-weight-bold",
+    
+    // Highlight input fields on validation failure
+    highlight: function(element) {
+      $(element).addClass('is-invalid').removeClass('is-valid');
+    },
+    // Clear highlight states once valid data is entered
+    unhighlight: function(element) {
+      $(element).removeClass('is-invalid').addClass('is-valid');
+    },
+
+    // submitHandler takes control automatically when form is completely valid
+    submitHandler: function(form) {
+      const isUpdate = $('#brandUpdate').is(':visible') && currentEditId;
+      const method = isUpdate ? 'PUT' : 'POST';
+      const endpoint = isUpdate ? `${url}/api/v1/brands/${currentEditId}` : `${url}/api/v1/brands`;
+
+      const payload = {
+        name: $('#name').val().trim()
+      };
+
+      $.ajax({
+        method: method,
+        url: endpoint,
+        contentType: 'application/json',
+        data: JSON.stringify(payload),
+        headers: { Authorization: `Bearer ${token}` },
+        success: function () {
+          $('#brandModal').modal('hide');
+          table.ajax.reload(null, false);
+          Swal.fire({ 
+            icon: 'success', 
+            text: isUpdate ? 'Brand updated successfully!' : 'Brand created successfully!' 
+          });
+        },
+        error: function (error) {
+          Swal.fire({ 
+            icon: 'error', 
+            text: error.responseJSON?.message || (isUpdate ? 'Update failed.' : 'Creation failed.') 
+          });
+        }
+      });
+    }
   });
 
+  // Row Edit Trigger Actions
   $('#btable').on('click', '.btn-edit', function () {
     const $row = $(this).closest('tr');
     const data = table.row($row).data();
@@ -98,42 +138,19 @@ $(document).ready(function () {
     currentEditId = data.brand_id;
     $('#name').val(data.name);
 
+    // Clear structural validation flags left behind from previous actions
+    if (typeof $('#bform').validate === 'function') {
+      $('#bform').validate().resetForm();
+    }
+    $('#bform').find('input').removeClass('is-invalid is-valid');
+
     $('#brandModal .modal-title').text('Update brand');
     $('#brandSubmit').hide();
     $('#brandUpdate').show();
     $('#brandModal').modal('show');
   });
 
-  $('#brandUpdate').on('click', function (e) {
-    e.preventDefault();
-    if (!currentEditId) return;
-
-    const payload = {
-      name: $('#name').val().trim()
-    };
-
-    if (!payload.name) {
-      Swal.fire({ icon: 'warning', text: 'Brand name is required.' });
-      return;
-    }
-
-    $.ajax({
-      method: 'PUT',
-      url: `${url}/api/v1/brands/${currentEditId}`,
-      contentType: 'application/json',
-      data: JSON.stringify(payload),
-      headers: { Authorization: `Bearer ${token}` },
-      success: function () {
-        $('#brandModal').modal('hide');
-        table.ajax.reload(null, false);
-        Swal.fire({ icon: 'success', text: 'Brand updated successfully!' });
-      },
-      error: function (error) {
-        Swal.fire({ icon: 'error', text: error.responseJSON?.message || 'Update failed.' });
-      }
-    });
-  });
-
+  // Row Delete Actions
   $('#btable').on('click', '.btn-delete', function (e) {
     e.stopPropagation();
     const $row = $(this).closest('tr');

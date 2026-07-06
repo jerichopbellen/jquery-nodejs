@@ -21,6 +21,17 @@ $(document).ready(function () {
     return;
   }
 
+  // Custom JSON Validator for Specifications
+  $.validator.addMethod("validJSON", function(value, element) {
+    if (this.optional(element) || !value || value.trim() === "" || value.trim() === "{}") return true;
+    try {
+        JSON.parse(value);
+        return true;
+    } catch (e) {
+        return false;
+    }
+  }, "Please enter a valid JSON format string.");
+
   function loadBrands() {
     return $.ajax({
       method: 'GET',
@@ -86,6 +97,13 @@ $(document).ready(function () {
           serverImages = [];
           imagesToDelete = [];
           $('#iform').trigger('reset');
+          
+          // Clear previous validation error tags and structural highlights
+          if (typeof $('#iform').validate === 'function') {
+            $('#iform').validate().resetForm();
+            $('#iform').find('input, select, textarea').removeClass('is-invalid is-valid');
+          }
+
           renderImagePreviews(); // Resets layout
           
           loadDropdowns().always(() => {
@@ -246,52 +264,120 @@ $(document).ready(function () {
     renderImagePreviews();          // Re-render UI
   });
 
-  // Combined Form submit handler
-  $('#iform').on('submit', function (e) {
-    e.preventDefault();
-
-    const formData = new FormData();
-    formData.append('description', $('#desc').val());
-    formData.append('brand_id', $('#brand').val());
-    formData.append('category_id', $('#category').val());
-    formData.append('sell_price', $('#sell').val());
-    formData.append('cost_price', $('#cost').val());
-    formData.append('quantity', $('#qty').val());
-    formData.append('specs', $('#specs').val() || '{}');
-
-    // Send down the array of image paths to clear out of the database column string
-    if (imagesToDelete.length > 0) {
-      formData.append('imagesToDelete', JSON.stringify(imagesToDelete));
-    }
-
-    // Append newly staged files
-    const fileInput = $('#img')[0];
-    if (fileInput && fileInput.files.length > 0) {
-      for (let i = 0; i < fileInput.files.length; i++) {
-        formData.append('images', fileInput.files[i]);
-      }
-    }
-
-    const isUpdate = $('#itemUpdate').is(':visible') && currentEditId;
-    const method = isUpdate ? 'PUT' : 'POST';
-    const endpoint = isUpdate ? `${url}/api/v1/items/${currentEditId}` : `${url}/api/v1/items`;
-
-    $.ajax({
-      method,
-      url: endpoint,
-      data: formData,
-      processData: false,
-      contentType: false,
-      headers: { Authorization: `Bearer ${token}` },
-      success: function () {
-        $('#itemModal').modal('hide');
-        table.ajax.reload(null, false);
-        Swal.fire({ icon: 'success', text: isUpdate ? 'Item updated successfully!' : 'Item created successfully!' });
+  // jQuery Validation Configuration Module
+  $("#iform").validate({
+    rules: {
+      description: {
+        required: true,
+        minlength: 3
       },
-      error: function (error) {
-        Swal.fire({ icon: 'error', text: error.responseJSON?.message || (isUpdate ? 'Update failed.' : 'Creation failed.') });
+      brand_id: {
+        required: true
+      },
+      category_id: {
+        required: true
+      },
+      sell_price: {
+        required: true,
+        number: true,
+        min: 0
+      },
+      cost_price: {
+        required: true,
+        number: true,
+        min: 0
+      },
+      quantity: {
+        required: true,
+        digits: true,
+        min: 0
+      },
+      specs: {
+        validJSON: true
       }
-    });
+    },
+    messages: {
+      description: {
+        required: "Please provide a valid item description.",
+        minlength: "Description must be at least 3 characters long."
+      },
+      brand_id: {
+        required: "Please map this item to an active brand."
+      },
+      category_id: {
+        required: "Please map this item to a structural category."
+      },
+      sell_price: {
+        required: "Specify a value-facing selling price.",
+        number: "Please enter a valid numeric value.",
+        min: "Price values cannot fall below zero."
+      },
+      cost_price: {
+        required: "Specify an internal baseline acquisition cost.",
+        number: "Please enter a valid numeric value.",
+        min: "Cost values cannot fall below zero."
+      },
+      quantity: {
+        required: "Stated inventory level quantities are required.",
+        digits: "Stock allocations must be defined as whole numbers.",
+        min: "Allocations cannot represent negative volumes."
+      }
+    },
+    errorElement: "small",
+    errorClass: "text-danger d-block mt-1 font-weight-bold",
+    
+    highlight: function(element) {
+      $(element).addClass('is-invalid').removeClass('is-valid');
+    },
+    unhighlight: function(element) {
+      $(element).removeClass('is-invalid').addClass('is-valid');
+    },
+
+    // Runs only when form verification passes successfully
+    submitHandler: function(form) {
+      const formData = new FormData();
+      formData.append('description', $('#desc').val());
+      formData.append('brand_id', $('#brand').val());
+      formData.append('category_id', $('#category').val());
+      formData.append('sell_price', $('#sell').val());
+      formData.append('cost_price', $('#cost').val());
+      formData.append('quantity', $('#qty').val());
+      formData.append('specs', $('#specs').val() || '{}');
+
+      // Send down the array of image paths to clear out of the database column string
+      if (imagesToDelete.length > 0) {
+        formData.append('imagesToDelete', JSON.stringify(imagesToDelete));
+      }
+
+      // Append newly staged files
+      const fileInput = $('#img')[0];
+      if (fileInput && fileInput.files.length > 0) {
+        for (let i = 0; i < fileInput.files.length; i++) {
+          formData.append('images', fileInput.files[i]);
+        }
+      }
+
+      const isUpdate = $('#itemUpdate').is(':visible') && currentEditId;
+      const method = isUpdate ? 'PUT' : 'POST';
+      const endpoint = isUpdate ? `${url}/api/v1/items/${currentEditId}` : `${url}/api/v1/items`;
+
+      $.ajax({
+        method,
+        url: endpoint,
+        data: formData,
+        processData: false,
+        contentType: false,
+        headers: { Authorization: `Bearer ${token}` },
+        success: function () {
+          $('#itemModal').modal('hide');
+          table.ajax.reload(null, false);
+          Swal.fire({ icon: 'success', text: isUpdate ? 'Item updated successfully!' : 'Item created successfully!' });
+        },
+        error: function (error) {
+          Swal.fire({ icon: 'error', text: error.responseJSON?.message || (isUpdate ? 'Update failed.' : 'Creation failed.') });
+        }
+      });
+    }
   });
 
   // Row Edit Command Actions
@@ -316,6 +402,12 @@ $(document).ready(function () {
     $('#img').val(''); // Empty file input elements
 
     loadDropdowns().always(() => {
+      // Wipe structural highlights left behind by a previous modal sequence
+      if (typeof $('#iform').validate === 'function') {
+        $('#iform').validate().resetForm();
+      }
+      $('#iform').find('input, select, textarea').removeClass('is-invalid is-valid');
+
       $('#brand').val(data.brand_id || '');
       $('#category').val(data.category_id || '');
       $('#specs').val(data.specs ? (typeof data.specs === 'object' ? JSON.stringify(data.specs) : data.specs) : '{}');

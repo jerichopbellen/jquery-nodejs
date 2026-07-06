@@ -922,3 +922,25 @@ input[type="password"]::-ms-reveal,
 input[type="password"]::-ms-clear {
   display: none;
 }
+
+
+/* Highlights the border of invalid input boxes red */
+input.error {
+    border: 1px solid #dc3545;
+    background-color: #fff8f8;
+}
+
+/* Formats the validation message text underneath the input */
+label.error {
+    color: #dc3545;
+    font-size: 0.85rem;
+    font-weight: bold;
+    display: block;
+    margin-top: 5px;
+}
+
+/* Optional: Highlights inputs green when they successfully pass validation */
+input.valid {
+    border: 1px solid #198754;
+    background-color: #f8fff9;
+}

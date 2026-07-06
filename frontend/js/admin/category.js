@@ -19,6 +19,7 @@ $(document).ready(function () {
 
   let currentEditId = null;
 
+  // DataTable Definition
   const table = $('#ctable').DataTable({
     ajax: {
       url: `${url}/api/v1/categories`,
@@ -37,6 +38,13 @@ $(document).ready(function () {
         action: function () {
           currentEditId = null;
           $('#cform').trigger('reset');
+
+          // Reset validation states and clear Bootstrap layout highlight modifiers
+          if (typeof $('#cform').validate === 'function') {
+            $('#cform').validate().resetForm();
+            $('#cform').find('input, select, textarea').removeClass('is-invalid is-valid');
+          }
+
           $('#categoryModal .modal-title').text('Create new category');
           $('#categoryUpdate').hide();
           $('#categorySubmit').show();
@@ -61,51 +69,90 @@ $(document).ready(function () {
     ]
   });
 
-  // unified submit (works for Enter and button click)
-  $('#cform').on('submit', function (e) {
-    e.preventDefault();
-
-    const payload = { name: $('#category_name').val().trim() };
-    if (!payload.name) {
-      Swal.fire({ icon: 'warning', text: 'Category name is required.' });
-      return;
-    }
-
-    const isUpdate = $('#categoryUpdate').is(':visible') && currentEditId;
-    const method = isUpdate ? 'PUT' : 'POST';
-    const endpoint = isUpdate
-      ? `${url}/api/v1/categories/${currentEditId}`
-      : `${url}/api/v1/categories`;
-
-    $.ajax({
-      method,
-      url: endpoint,
-      contentType: 'application/json',
-      data: JSON.stringify(payload),
-      headers: { Authorization: `Bearer ${token}` },
-      success: function () {
-        $('#categoryModal').modal('hide');
-        table.ajax.reload(null, false);
-        Swal.fire({ icon: 'success', text: isUpdate ? 'Category updated successfully!' : 'Category created successfully!' });
-      },
-      error: function (error) {
-        Swal.fire({ icon: 'error', text: error.responseJSON?.message || (isUpdate ? 'Update failed.' : 'Creation failed.') });
+  // jQuery Validation Configuration Module
+  $("#cform").validate({
+    rules: {
+      // Points directly to the element's [name="name"] attribute
+      name: {
+        required: true,
+        minlength: 2
       }
-    });
+    },
+    messages: {
+      name: {
+        required: "Please provide a structural category name.",
+        minlength: "Category name must be at least 2 characters long."
+      }
+    },
+    errorElement: "small",
+    errorClass: "text-danger d-block mt-1 font-weight-bold",
+    
+    // Highlights form control wrappers on validation exception
+    highlight: function(element) {
+      $(element).addClass('is-invalid').removeClass('is-valid');
+    },
+    // Changes framework markers to green once parameters resolve cleanly
+    unhighlight: function(element) {
+      $(element).removeClass('is-invalid').addClass('is-valid');
+    },
+
+    // Automated submission capture point after all field rules clear successfully
+    submitHandler: function(form) {
+      const isUpdate = $('#categoryUpdate').is(':visible') && currentEditId;
+      const method = isUpdate ? 'PUT' : 'POST';
+      const endpoint = isUpdate
+        ? `${url}/api/v1/categories/${currentEditId}`
+        : `${url}/api/v1/categories`;
+
+      const payload = { 
+        name: $('#category_name').val().trim() 
+      };
+
+      $.ajax({
+        method,
+        url: endpoint,
+        contentType: 'application/json',
+        data: JSON.stringify(payload),
+        headers: { Authorization: `Bearer ${token}` },
+        success: function () {
+          $('#categoryModal').modal('hide');
+          table.ajax.reload(null, false);
+          Swal.fire({ 
+            icon: 'success', 
+            text: isUpdate ? 'Category updated successfully!' : 'Category created successfully!' 
+          });
+        },
+        error: function (error) {
+          Swal.fire({ 
+            icon: 'error', 
+            text: error.responseJSON?.message || (isUpdate ? 'Update failed.' : 'Creation failed.') 
+          });
+        }
+      });
+    }
   });
 
+  // Row Edit Action Bindings
   $('#ctable').on('click', '.btn-edit', function () {
     const data = table.row($(this).closest('tr')).data();
     if (!data) return;
 
     currentEditId = data.category_id;
     $('#category_name').val(data.name);
+
+    // Clear dynamic error states left over from prior form actions
+    if (typeof $('#cform').validate === 'function') {
+      $('#cform').validate().resetForm();
+    }
+    $('#cform').find('input, select, textarea').removeClass('is-invalid is-valid');
+
     $('#categoryModal .modal-title').text('Update category');
     $('#categorySubmit').hide();
     $('#categoryUpdate').show();
     $('#categoryModal').modal('show');
   });
 
+  // Row Delete Action Bindings
   $('#ctable').on('click', '.btn-delete', function (e) {
     e.stopPropagation();
     const data = table.row($(this).closest('tr')).data();
