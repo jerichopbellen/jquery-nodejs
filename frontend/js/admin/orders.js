@@ -16,6 +16,9 @@ $(document).ready(function () {
     });
     return;
   }
+
+  $('#wrapper').show();
+
   
   const STATUS_OPTIONS = ['processing', 'shipped', 'delivered', 'cancelled'];
 
