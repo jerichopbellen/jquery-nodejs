@@ -1,44 +1,85 @@
 $(document).ready(function () {
   const url = 'http://localhost:5000/';
 
-  // if already logged in, redirect away
+  // If already logged in, redirect away
   if (sessionStorage.getItem('token')) {
     const role = sessionStorage.getItem('role');
-    window.location.href = role === 'admin' ? 'dashboard.html' : 'home.html';
+    window.location.href = role === 'admin' ? 'admin-dashboard.html' : 'home.html';
     return;
   }
 
-  $('#registerForm').on('submit', function (e) {
-    e.preventDefault();
-
-    const name = $('#name').val().trim();
-    const email = $('#email').val().trim();
-    const password = $('#password').val();
-
-    if (!name || !email || !password) {
-      return Swal.fire({ icon: 'warning', text: 'Name, email, and password are required.' });
-    }
-
-    $.ajax({
-      method: 'POST',
-      url: `${url}api/v1/register`,
-      data: JSON.stringify({ name, email, password }),
-      processData: false,
-      contentType: 'application/json; charset=utf-8',
-      dataType: 'json',
-      success: function (data) {
-        Swal.fire({
-          icon: 'success',
-          text: data?.message || 'Register success'
-        });
-
-        setTimeout(() => {
-          window.location.href = 'login.html';
-        }, 800);
+  // jQuery Validation Module for Registration Form
+  $('#registerForm').validate({
+    rules: {
+      name: {
+        required: true,
+        minlength: 2
       },
-      error: function (error) {
-        Swal.fire({ icon: 'error', text: error.responseJSON?.message || 'Register failed' });
+      email: {
+        required: true,
+        email: true
+      },
+      password: {
+        required: true,
+        minlength: 6
       }
-    });
+    },
+    messages: {
+      name: {
+        required: "Please enter your full name.",
+        minlength: "Name must be at least 2 characters long."
+      },
+      email: {
+        required: "Please enter your email address.",
+        email: "Please provide a valid email format (e.g., name@example.com)."
+      },
+      password: {
+        required: "Please provide a password.",
+        minlength: "Your password must be at least 6 characters long."
+      }
+    },
+    errorElement: "small",
+    errorClass: "text-danger d-block mt-1 font-weight-bold",
+    
+    // Highlight inputs on validation exception
+    highlight: function(element) {
+      $(element).addClass('is-invalid').removeClass('is-valid');
+    },
+    // Clear highlight states once valid data is entered
+    unhighlight: function(element) {
+      $(element).removeClass('is-invalid').addClass('is-valid');
+    },
+
+    // Runs automatically ONLY when all fields pass validation rules
+    submitHandler: function(form) {
+      const name = $('#name').val().trim();
+      const email = $('#email').val().trim();
+      const password = $('#password').val();
+
+      $.ajax({
+        method: 'POST',
+        url: `${url}api/v1/register`,
+        data: JSON.stringify({ name, email, password }),
+        processData: false,
+        contentType: 'application/json; charset=utf-8',
+        dataType: 'json',
+        success: function (data) {
+          Swal.fire({
+            icon: 'success',
+            text: data?.message || 'Registration successful!'
+          });
+
+          setTimeout(() => {
+            window.location.href = 'login.html';
+          }, 800);
+        },
+        error: function (error) {
+          Swal.fire({
+            icon: 'error',
+            text: error.responseJSON?.message || 'Registration failed.'
+          });
+        }
+      });
+    }
   });
 });
