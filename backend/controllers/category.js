@@ -33,6 +33,12 @@ const getSingleCategory = async (req, res) => {
 
 const createCategory = async (req, res) => {
   try {
+    const { name } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ message: 'Category name is required.' });
+    }
+
     const category = await Category.create(req.body);
     return res.status(201).json(category);
   } catch (error) {
@@ -45,6 +51,12 @@ const createCategory = async (req, res) => {
 
 const updateCategory = async (req, res) => {
   try {
+    const { name } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ message: 'Category name is required.' });
+    }
+    
     const category = await Category.findByPk(req.params.id);
 
     if (!category) {

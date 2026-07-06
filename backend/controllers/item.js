@@ -168,6 +168,10 @@ const getSingleItem = async (req, res) => {
 const createItem = async (req, res) => {
   try {
     const { description, brand_id, category_id, cost_price, sell_price, quantity, specs } = req.body;
+    
+    if (!description || !cost_price || !sell_price || !quantity) {
+      return res.status(400).json({ success: false, message: "Missing required fields." });
+    }
 
     let parsedSpecs = {};
     if (specs) {
@@ -218,6 +222,10 @@ const updateItem = async (req, res) => {
   try {
     const { id } = req.params;
     const { description, brand_id, category_id, cost_price, sell_price, quantity, specs, imagesToDelete } = req.body;
+
+    if (!description || !cost_price || !sell_price || !quantity) {
+      return res.status(400).json({ success: false, message: "Missing required fields." });
+    }
 
     const item = await Item.findByPk(id);
     if (!item) {
