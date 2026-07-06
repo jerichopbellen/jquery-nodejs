@@ -12,7 +12,8 @@ const {
   adminDeleteReview
 } = require('../controllers/review');
 
-const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/auth');
+const { isAuthenticatedUser } = require('../middlewares/auth');
+const { authorizeRoles } = require('../middlewares/role');
 
 // Public
 router.get('/items/:itemId/reviews', getReviewsForItem);

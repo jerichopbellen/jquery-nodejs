@@ -10,7 +10,8 @@ const {
   deleteCategory
 } = require('../controllers/category'); 
 
-const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/auth');
+const { isAuthenticatedUser } = require('../middlewares/auth');
+const { authorizeRoles } = require('../middlewares/role');
 
 router.get('/categories', getAllCategories);
 router.get('/categories/:id', getSingleCategory);

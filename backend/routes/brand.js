@@ -10,7 +10,8 @@ const {
   deleteBrand
 } = require('../controllers/brand'); 
 
-const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/auth');
+const { isAuthenticatedUser } = require('../middlewares/auth');
+const { authorizeRoles } = require('../middlewares/role');
 
 router.get('/brands', getAllBrands);
 router.get('/brands/:id', getSingleBrand);

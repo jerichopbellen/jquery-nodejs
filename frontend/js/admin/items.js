@@ -21,6 +21,8 @@ $(document).ready(function () {
     return;
   }
 
+  $('#wrapper').show();
+
   // Custom JSON Validator for Specifications
   $.validator.addMethod("validJSON", function(value, element) {
     if (this.optional(element) || !value || value.trim() === "" || value.trim() === "{}") return true;

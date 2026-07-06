@@ -43,12 +43,3 @@ exports.isAuthenticatedUser = async (req, res, next) => {
     return res.status(401).json({ success: false, message: 'Invalid or expired token' });
   }
 };
-
-exports.authorizeRoles = (...roles) => {
-  return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({ success: false, message: 'Forbidden: insufficient permissions' });
-    }
-    next();
-  };
-};

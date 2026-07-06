@@ -9,7 +9,8 @@ const {
   yearlyRevenue,
   productShare
 } = require('../controllers/dashboard');
-const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/auth');
+const { isAuthenticatedUser } = require('../middlewares/auth');
+const { authorizeRoles } = require('../middlewares/role');
 
 router.get('/stats', isAuthenticatedUser, authorizeRoles('admin'), dashboardStats);
 router.get('/order-status', isAuthenticatedUser, authorizeRoles('admin'), orderStatus);

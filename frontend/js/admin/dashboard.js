@@ -18,6 +18,8 @@ $(document).ready(function () {
     return;
   }
 
+  $('#wrapper').show();
+
   function randomColors(count) {
     const colors = [];
     const letters = '0123456789ABCDEF';

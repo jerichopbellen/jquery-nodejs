@@ -10,7 +10,8 @@ const {
   deleteItem
 } = require('../controllers/item');
 
-const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/auth');
+const { isAuthenticatedUser } = require('../middlewares/auth');
+const { authorizeRoles } = require('../middlewares/role');
 
 router.get('/items', getAllItems);
 router.get('/items/:id', getSingleItem);

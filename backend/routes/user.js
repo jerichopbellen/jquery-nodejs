@@ -11,7 +11,8 @@ const {
   updateMyProfile
 } = require('../controllers/user');
 
-const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/auth');
+const { isAuthenticatedUser } = require('../middlewares/auth');
+const { authorizeRoles } = require('../middlewares/role');
 const upload = require('../utils/multer');
 
 router.post('/register', registerUser);

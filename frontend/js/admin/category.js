@@ -17,6 +17,8 @@ $(document).ready(function () {
     return;
   }
 
+  $('#wrapper').show();
+
   let currentEditId = null;
 
   // DataTable Definition

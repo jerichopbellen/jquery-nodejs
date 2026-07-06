@@ -3,10 +3,22 @@ $(document).ready(function () {
   const token = sessionStorage.getItem('token');
   const role = sessionStorage.getItem('role');
 
-  if (!token || role !== 'admin') {
-    window.location.href = 'login.html';
+ 
+  if (!token) {
+    Swal.fire({ icon: 'warning', text: 'Please login first.' }).then(() => {
+      window.location.href = 'login.html';
+    });
     return;
   }
+
+  if (role && role !== 'admin') {
+    Swal.fire({ icon: 'error', text: 'Admin access only.' }).then(() => {
+      window.location.href = 'home.html';
+    });
+    return;
+  }
+
+  $('#wrapper').show();
 
   function formatDate(dateStr) {
     if (!dateStr) return '';

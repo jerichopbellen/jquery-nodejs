@@ -3,7 +3,6 @@ $(document).ready(function () {
   const token = sessionStorage.getItem('token');
   const role = sessionStorage.getItem('role');
 
-  // Admin guard
   if (!token) {
     Swal.fire({ icon: 'warning', text: 'Please login first.' }).then(() => {
       window.location.href = 'login.html';
@@ -17,6 +16,8 @@ $(document).ready(function () {
     });
     return;
   }
+
+  $('#wrapper').show();
 
   // users table
   const table = $('#usersTable').DataTable({
