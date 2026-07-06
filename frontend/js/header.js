@@ -73,6 +73,7 @@ $(document).ready(function () {
         <a class="dropdown-item" href="admin-brands.html">Manage Brands</a>
         <a class="dropdown-item" href="admin-category.html">Manage Categories</a>
         <a class="dropdown-item" href="admin-orders.html">Manage Orders</a>
+        <a class="dropdown-item" href="admin-reviews.html">Manage Reviews</a>
         <a class="dropdown-item" href="admin-users.html">Manage Users</a>
         <div class="dropdown-divider"></div>
       `;
