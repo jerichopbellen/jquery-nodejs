@@ -4,193 +4,18 @@
   <meta charset="utf-8" />
   <title>Home</title>
 
- <link
-  rel="stylesheet"
-  href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css"
-  integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm"
-  crossorigin="anonymous"
-/>
-<link href="https://use.fontawesome.com/releases/v5.0.6/css/all.css" rel="stylesheet" />
-<link
-  rel="stylesheet"
-  href="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.16.1/sweetalert2.css"
-/>
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css"
+    integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm"
+    crossorigin="anonymous"
+  />
+  <link href="https://use.fontawesome.com/releases/v5.0.6/css/all.css" rel="stylesheet" />
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.16.1/sweetalert2.css"
+  />
   <link rel="stylesheet" href="css/style.css" />
-
-  <style>
-    #backToTop {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      width: 48px;
-      height: 48px;
-      z-index: 999;
-      font-size: 1.1rem;
-      line-height: 1;
-    }
-
-    /* --- Brand Nav Bar --- */
-    .brand-nav-bar {
-      background: #fdfaf3; /* ivory */
-      border: 1px solid #1a2340; /* navy, matches search input border */
-      padding: 0.75rem 1.5rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 1rem;
-      transition: margin-bottom 0.15s ease;
-    }
-
-    .brand-nav-list {
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 0.5rem 1.5rem;
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      overflow-x: auto;
-    }
-
-    .brand-nav-link {
-      color: #2c3550; /* navy */
-      font-weight: 700;
-      font-size: 0.85rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      text-decoration: none;
-      white-space: nowrap;
-      padding-bottom: 4px;
-      border-bottom: 2px solid transparent;
-      transition: color 0.15s ease, border-color 0.15s ease;
-    }
-
-    .brand-nav-link:hover {
-      color: #b08d57; /* brass */
-      text-decoration: none;
-    }
-
-    .brand-nav-link.active {
-      color: #b08d57;
-      border-bottom-color: #b08d57;
-    }
-
-    /* Search box now lives inside the brand nav bar instead of beside the heading */
-    .brand-nav-bar .search-wrapper {
-      width: 280px;
-      margin-left: 0;
-    }
-
-    /* --- Search / Autocomplete --- */
-    .shop-header-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 1rem;
-      margin-bottom: 2rem;
-      transition: margin-bottom 0.15s ease;
-    }
-
-    .shop-header-row h1 {
-      margin-bottom: 0;
-    }
-
-    .search-wrapper {
-      position: relative;
-      width: 320px;
-      max-width: 100%;
-      margin-left: auto; /* keeps it pinned right even if it wraps to its own line */
-    }
-
-    #productSearch {
-      border: 1px solid #1a2340; /* navy */
-      border-radius: 4px;
-      padding: 10px 14px;
-    }
-
-    #productSearch:focus {
-      border-color: #b08d57; /* brass */
-      box-shadow: 0 0 0 0.2rem rgba(176, 141, 87, 0.25);
-    }
-
-    .search-dropdown {
-      display: none;
-      position: absolute;
-      top: 100%;
-      left: 0;
-      right: 0;
-      background: #fdfaf3; /* ivory */
-      border: 1px solid #1a2340; /* navy */
-      border-top: none;
-      max-height: 360px;
-      overflow-y: auto;
-      z-index: 1050;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-      border-radius: 0 0 4px 4px;
-      width: 100%;
-    }
-
-    .search-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 8px 14px;
-      cursor: pointer;
-      border-bottom: 1px solid #eee;
-    }
-
-    .search-item:last-child {
-      border-bottom: none;
-    }
-
-    .search-item:hover {
-      background: #b08d57; /* brass */
-      color: #fff;
-    }
-
-    .search-item img {
-      width: 36px;
-      height: 36px;
-      object-fit: contain;
-      border-radius: 4px;
-      background: #fff;
-      flex-shrink: 0;
-    }
-
-    .search-item-info {
-      overflow: hidden;
-    }
-
-    .search-item-name {
-      font-size: 0.9rem;
-      font-weight: 600;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .search-item-price {
-      font-size: 0.8rem;
-      color: #1a2340;
-    }
-
-    .search-item:hover .search-item-price {
-      color: #fff;
-    }
-
-    .search-no-results {
-      cursor: default;
-      color: #999;
-      justify-content: center;
-    }
-
-    .search-no-results:hover {
-      background: none;
-      color: #999;
-    }
-  </style>
 
   <script src="https://code.jquery.com/jquery-3.6.4.min.js"
     integrity="sha256-oP6HI9z1XaZNBrJURtCoUT5SUnxFr8s3BzRl+cbzUq8="
@@ -211,55 +36,108 @@
 <body>
   <div id="header"></div>
 
-  <!-- Brand Nav Bar: lists brands (like a Zalora-style category bar); clicking
-       one filters the product grid below by that brand. Search box lives
-       here too, on the right, for better organization. -->
-  <nav class="brand-nav-bar">
-    <ul class="brand-nav-list" id="brandNavList">
-      <li><a href="#" class="brand-nav-link active" data-brand-id="">All</a></li>
-      <!-- brand links injected here by home.js -->
-    </ul>
-
-    <div class="search-wrapper">
-      <input
-        type="text"
-        id="productSearch"
-        class="form-control"
-        placeholder="Search products..."
-        autocomplete="off"
-      />
-      <div id="searchResults" class="search-dropdown"></div>
-    </div>
-  </nav>
-
   <div class="container my-5">
-    <div class="shop-header-row">
-      <h1>Shop Products</h1>
-    </div>
+    <div class="row">
+      <!-- Sidebar Filters: Left Column -->
+      <aside class="col-lg-3 mb-4">
+        <div class="filter-card">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="filter-title m-0">Filters</span>
+            <button id="clearFiltersBtn" class="btn-clear-filters">Clear All</button>
+          </div>
 
-    <div id="items"></div>
+          <!-- Brands Filter Panel -->
+          <div class="mb-4">
+            <div class="filter-section-header">Brands</div>
+            <div class="dropdown">
+              <button class="btn filter-dropdown-toggle" type="button" id="brandFilterDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                Select Brands <i class="fas fa-chevron-down small text-muted"></i>
+              </button>
+              <div class="dropdown-menu filter-dropdown-menu" aria-labelledby="brandFilterDropdown" id="brandFilterList">
+                <label class="filter-checkbox-label">
+                  <input type="checkbox" class="brand-filter-checkbox" value="" checked>
+                  All Brands
+                </label>
+                <!-- brand dynamic options injected here -->
+              </div>
+            </div>
+          </div>
 
-    <!-- Loading spinner shown while fetching a page -->
-    <div id="itemsLoading" class="text-center py-4 d-none">
-      <div class="spinner-border text-primary" role="status">
-        <span class="sr-only">Loading...</span>
-      </div>
-      <p class="text-muted mt-2 mb-0">Loading more products...</p>
-    </div>
+          <!-- Categories Filter Panel -->
+          <div class="mb-4">
+            <div class="filter-section-header">Categories</div>
+            <div class="dropdown">
+              <button class="btn filter-dropdown-toggle" type="button" id="categoryFilterDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                Select Categories <i class="fas fa-chevron-down small text-muted"></i>
+              </button>
+              <div class="dropdown-menu filter-dropdown-menu" aria-labelledby="categoryFilterDropdown" id="categoryFilterList">
+                <label class="filter-checkbox-label">
+                  <input type="checkbox" class="category-filter-checkbox" value="" checked>
+                  All Categories
+                </label>
+                <!-- category dynamic options injected here -->
+              </div>
+            </div>
+          </div>
 
-    <!-- Shown only if a page request fails -->
-    <div id="itemsError" class="text-center py-4 d-none">
-      <p class="text-danger mb-2">Failed to load products.</p>
-      <button type="button" id="itemsRetryBtn" class="btn btn-outline-primary btn-sm">Retry</button>
-    </div>
+          <!-- Price Range Filter Panel -->
+          <div class="mb-4">
+            <div class="filter-section-header">Price Range</div>
+            <div class="price-input-group mb-3">
+              <input type="number" id="minPriceInput" class="form-control" placeholder="Min ₱" min="0">
+              <span class="text-muted">–</span>
+              <input type="number" id="maxPriceInput" class="form-control" placeholder="Max ₱" min="0">
+            </div>
+          </div>
 
-    <!-- Shown once there are no more pages left -->
-    <div id="itemsEnd" class="text-center py-4 d-none">
-      <p class="text-muted mb-0">You've reached the end — no more products to show.</p>
+          <button id="applyFiltersBtn" class="btn btn-block btn-apply-filters">
+            Apply Filters
+          </button>
+        </div>
+      </aside>
+
+      <!-- Main Catalogue and Search: Right Column -->
+      <main class="col-lg-9">
+        <div class="top-search-bar">
+          <h1 class="h3 font-weight-bold mb-0 text-dark">Shop Products</h1>
+          
+          <div class="search-wrapper">
+            <input
+              type="text"
+              id="productSearch"
+              class="form-control"
+              placeholder="Search products..."
+              autocomplete="off"
+            />
+            <div id="searchResults" class="search-dropdown"></div>
+          </div>
+        </div>
+
+        <div id="items"></div>
+
+        <!-- Loading spinner shown while fetching a page -->
+        <div id="itemsLoading" class="text-center py-4 d-none">
+          <div class="spinner-border text-primary" role="status">
+            <span class="sr-only">Loading...</span>
+          </div>
+          <p class="text-muted mt-2 mb-0">Loading more products...</p>
+        </div>
+
+        <!-- Shown only if a page request fails -->
+        <div id="itemsError" class="text-center py-4 d-none">
+          <p class="text-danger mb-2">Failed to load products.</p>
+          <button type="button" id="itemsRetryBtn" class="btn btn-outline-primary btn-sm">Retry</button>
+        </div>
+
+        <!-- Shown once there are no more pages left -->
+        <div id="itemsEnd" class="text-center py-4 d-none">
+          <p class="text-muted mb-0">You've reached the end — no more products to show.</p>
+        </div>
+      </main>
     </div>
   </div>
 
   <!-- Back to top button, appears after scrolling down -->
-  <button id="backToTop" class="btn btn-secondary rounded-circle d-none">↑</button>
+  <button id="backToTop" class="btn rounded-circle d-none">↑</button>
 </body>
 </html>

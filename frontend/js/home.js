@@ -5,6 +5,15 @@ $(document).ready(function () {
   let currentPage = 1;
   let isLoading = false;
   let hasMore = true;
+  let activeFilters = {
+    brands: [],
+    categories: [],
+    minPrice: null,
+    maxPrice: null
+  };
+  
+  // Keep track of any existing review by the logged-in user to dynamically show edit/delete inline
+  let loggedInUserReview = null;
 
   const getCart = () => JSON.parse(localStorage.getItem('cart') || '[]');
   const saveCart = (cart) => localStorage.setItem('cart', JSON.stringify(cart));
@@ -31,7 +40,7 @@ $(document).ready(function () {
             <div class="modal-body" id="productDetailsModalBody"></div>
             <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-              <button type="button" class="btn btn-primary" id="confirmAddToCart">Add to Cart</button>
+              <button type="button" class="btn btn-primary px-4 font-weight-bold" id="confirmAddToCart" style="background-color: #1a2340; border: none;">Add to Cart</button>
             </div>
           </div>
         </div>
@@ -54,30 +63,30 @@ $(document).ready(function () {
       } else if (rating >= i - 0.5) {
         starsHtml += '<i class="fas fa-star-half-alt text-warning"></i>';
       } else {
-        starsHtml += '<i class="far fa-star text-warning"></i>';
+        starsHtml += '<i class="far fa-star text-warning" style="opacity: 0.5;"></i>';
       }
     }
     const reviewText = totalReviews > 0
-      ? `<span class="text-muted small ml-1">${rating.toFixed(1)} (${totalReviews})</span>`
-      : `<span class="text-muted small ml-1">No reviews yet</span>`;
-    return `<div class="mb-1">${starsHtml}${reviewText}</div>`;
+      ? `<span class="text-muted small ml-2 font-weight-bold">${rating.toFixed(1)} (${totalReviews} Reviews)</span>`
+      : `<span class="text-muted small ml-2">No reviews yet</span>`;
+    return `<div class="stars-container">${starsHtml}${reviewText}</div>`;
   }
 
   function buildStaticStarsHtml(rating) {
     let html = '';
     for (let i = 1; i <= 5; i++) {
       html += i <= rating
-        ? '<i class="fas fa-star text-warning"></i>'
-        : '<i class="far fa-star text-warning"></i>';
+        ? '<i class="fas fa-star text-warning mr-1"></i>'
+        : '<i class="far fa-star text-warning mr-1" style="opacity: 0.4;"></i>';
     }
     return html;
   }
 
   function buildStarInputHtml(selected = 0) {
-    let html = '<div class="star-input" data-rating="' + selected + '">';
+    let html = '<div class="star-input my-2" data-rating="' + selected + '">';
     for (let i = 1; i <= 5; i++) {
       const filled = i <= selected ? 'fas' : 'far';
-      html += `<i class="${filled} fa-star text-warning star-pick" data-value="${i}" style="cursor:pointer; font-size:1.3rem; margin-right:2px;"></i>`;
+      html += `<i class="${filled} fa-star text-warning star-pick" data-value="${i}" style="cursor:pointer; font-size:1.4rem; margin-right:4px;"></i>`;
     }
     html += '</div>';
     return html;
@@ -95,17 +104,29 @@ $(document).ready(function () {
     const itemImgSrc = `${url}${primaryImg}`;
 
     return `
-      <div class="col-md-4 mb-4">
-        <div class="card h-100 shadow-sm">
-          <img class="card-img-top p-3" src="${itemImgSrc}" alt="${item.description}" style="height: 200px; object-fit: contain;">
-          <div class="card-body d-flex flex-column">
-            <h5 class="card-title text-truncate">${item.description}</h5>
+      <div class="col-md-6 col-lg-4 mb-4 product-card-container" 
+           data-brand-id="${item.brand_id || ''}" 
+           data-brand-name="${(item.brand || '').toLowerCase()}"
+           data-category="${(item.category || '').toLowerCase()}" 
+           data-price="${item.sell_price}">
+        <div class="product-card h-100 d-flex flex-column">
+          <div class="product-img-wrapper">
+            <img src="${itemImgSrc}" alt="${item.description}">
+          </div>
+          <div class="product-details d-flex flex-column flex-grow-1">
+            <span class="product-category-tag">${item.category}</span>
+            <h5 class="product-title" title="${item.description}">${item.description}</h5>
             ${buildStarsHtml(item.averageRating, item.totalReviews)}
-            <p class="card-text text-muted mb-1"><small>Brand: ${item.brand} | Category: ${item.category}</small></p>
-            <h4 class="text-primary mt-auto">₱${Number(item.sell_price).toFixed(2)}</h4>
-            <button class="btn btn-outline-primary btn-block mt-3 btn-view-details" data-id="${item.item_id}">
-              View Details
-            </button>
+            <div class="product-brand-text mb-2">Brand: <strong>${item.brand}</strong></div>
+            
+            <div class="mt-auto">
+              <div class="mb-3">
+                <span class="product-price d-block">₱${Number(item.sell_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+              <button class="btn btn-details-action btn-block btn-view-details" data-id="${item.item_id}">
+                View Details
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -136,12 +157,17 @@ $(document).ready(function () {
         const cardsHtml = res.rows.map(buildItemCard).join('');
         $('#itemsRow').append(cardsHtml);
 
+        // Dynamically extract categories to populate sidebar list dynamically if not populated yet
+        populateCategoriesFromItems(res.rows);
+
         hasMore = res.pagination ? res.pagination.hasMore : false;
         currentPage++;
 
         if (!hasMore) {
           $('#itemsEnd').removeClass('d-none');
         }
+
+        applySidebarFiltersClientSide();
       },
       error: function () {
         $('#itemsError').removeClass('d-none');
@@ -149,6 +175,28 @@ $(document).ready(function () {
       complete: function () {
         isLoading = false;
         $('#itemsLoading').addClass('d-none');
+      }
+    });
+  }
+
+  function populateCategoriesFromItems(rows) {
+    if (!rows) return;
+    const existingOptions = $('#categoryFilterList label.filter-checkbox-label input').map(function() {
+      return $(this).val().toLowerCase();
+    }).get();
+
+    rows.forEach(item => {
+      if (item.category) {
+        const catLower = item.category.toLowerCase();
+        if (existingOptions.indexOf(catLower) === -1) {
+          existingOptions.push(catLower);
+          $('#categoryFilterList').append(`
+            <label class="filter-checkbox-label">
+              <input type="checkbox" class="category-filter-checkbox" value="${item.category}">
+              ${item.category}
+            </label>
+          `);
+        }
       }
     });
   }
@@ -215,11 +263,11 @@ $(document).ready(function () {
         imageArray.forEach((img, index) => {
           const isActive = index === 0 ? 'active' : '';
           carouselIndicators += `
-            <li data-target="#itemImagesCarousel" data-slide-to="${index}" class="${isActive}"></li>
+            <li data-target="#itemImagesCarousel" data-slide-to="${index}" class="${isActive}" style="background-color: #b08d57;"></li>
           `;
           carouselItems += `
             <div class="carousel-item ${isActive}">
-              <img class="d-block w-100" src="${url}${img}" alt="Slide ${index}" style="height: 350px; object-fit: contain;">
+              <img class="d-block w-100" src="${url}${img}" alt="Slide ${index}" style="height: 420px; object-fit: contain;">
             </div>
           `;
         });
@@ -231,27 +279,36 @@ $(document).ready(function () {
         }
 
         if (specsObj && typeof specsObj === 'object' && Object.keys(specsObj).length > 0) {
-          specsHtml += '<h6 class="mt-3">Specifications:</h6><ul>';
+          specsHtml += `
+            <h6 class="mt-4 font-weight-bold text-dark border-bottom pb-2">Specifications</h6>
+            <table class="specs-table">
+          `;
           for (const [key, value] of Object.entries(specsObj)) {
-            specsHtml += `<li><strong>${key}:</strong> ${value}</li>`;
+            specsHtml += `
+              <tr>
+                <td>${key}</td>
+                <td>${value}</td>
+              </tr>
+            `;
           }
-          specsHtml += '</ul>';
+          specsHtml += '</table>';
         }
 
         const stock = item.quantity;
+        const isOutOfStock = stock <= 0;
 
         $('#productDetailsModalLabel').text(item.description);
         $('#productDetailsModalBody').html(`
           <input type="hidden" id="detailsItemId" value="${item.item_id}">
           <input type="hidden" id="detailsItemPrice" value="${item.sell_price}">
           
-          <div class="row">
-            <div class="col-md-6">
-              <div id="itemImagesCarousel" class="carousel slide border rounded bg-light" data-ride="carousel">
+          <div class="row align-items-stretch">
+            <div class="col-md-6 mb-4 mb-md-0 d-flex flex-column">
+              <div id="itemImagesCarousel" class="carousel slide border rounded bg-light p-3 flex-grow-1 d-flex flex-column justify-content-center" data-ride="carousel" style="min-height: 440px;">
                 <ol class="carousel-indicators">
                   ${carouselIndicators}
                 </ol>
-                <div class="carousel-inner">
+                <div class="carousel-inner carousel-inner-modal my-auto">
                   ${carouselItems}
                 </div>
                 ${imageArray.length > 1 ? `
@@ -266,31 +323,49 @@ $(document).ready(function () {
                 ` : ''}
               </div>
             </div>
-            <div class="col-md-6">
-              <p class="text-muted mb-1">Brand: <strong>${item.brand}</strong></p>
-              <p class="text-muted mb-3">Category: <strong>${item.category}</strong></p>
+            <div class="col-md-6 d-flex flex-column">
+              <div class="mb-3 d-flex flex-wrap gap-2">
+                <span class="badge-premium-brand mr-2">Brand: ${item.brand}</span>
+                <span class="badge-premium-category">Category: ${item.category}</span>
+              </div>
+              
+              <h4 class="font-weight-bold text-dark mb-2">${item.description}</h4>
               ${buildStarsHtml(item.averageRating, item.totalReviews)}
-              <h3 class="text-primary mb-3">₱${Number(item.sell_price).toFixed(2)}</h3>
-              <p>Available Stock: <span id="modalStockDisplay" class="font-weight-bold">${stock}</span></p>
+              
+              <div class="my-3">
+                <span class="modal-item-price">₱${Number(item.sell_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+
+              <div class="mb-3">
+                ${isOutOfStock 
+                  ? `<span class="stock-indicator stock-out"><i class="fas fa-times-circle"></i> Out of Stock</span>` 
+                  : `<span class="stock-indicator stock-in"><i class="fas fa-check-circle"></i> In Stock (${stock} available)</span>`
+                }
+                <span id="modalStockDisplay" class="d-none">${stock}</span>
+              </div>
+
               ${specsHtml}
               
-              <div class="form-group mt-4" ${stock <= 0 ? 'style="display:none;"' : ''}>
-                <label for="detailsQty">Quantity:</label>
-                <input type="number" id="detailsQty" class="form-control" value="1" min="1" max="${stock}">
+              <div class="form-group mt-auto pt-3" ${isOutOfStock ? 'style="display:none;"' : ''}>
+                <label for="detailsQty" class="font-weight-bold text-muted small d-block mb-2">SELECT QUANTITY:</label>
+                <div class="d-flex align-items-center">
+                  <button type="button" class="btn btn-outline-secondary d-flex align-items-center justify-content-center" id="qtyMinusBtn" style="width: 38px; height: 38px; font-weight: bold; font-size: 1.1rem; border-radius: 6px 0 0 6px; border-right: none;">-</button>
+                  <input type="number" id="detailsQty" class="form-control text-center font-weight-bold" value="1" min="1" max="${stock}" style="width: 60px; height: 38px; border-radius: 0; margin: 0; outline: none; border-color: #6c757d; box-shadow: none;">
+                  <button type="button" class="btn btn-outline-secondary d-flex align-items-center justify-content-center" id="qtyPlusBtn" style="width: 38px; height: 38px; font-weight: bold; font-size: 1.1rem; border-radius: 0 6px 6px 0; border-left: none;">+</button>
+                </div>
               </div>
-              ${stock <= 0 ? '<div class="alert alert-danger p-2 text-center font-weight-bold mt-4">Out of Stock</div>' : ''}
             </div>
           </div>
 
-          <hr class="mt-4">
+          <hr class="my-4">
           <div id="reviewsSection">
-            <h5>Customer Reviews</h5>
-            <div id="reviewFormContainer"></div>
-            <div id="reviewsList" class="mt-3"><p class="text-muted">Loading reviews...</p></div>
+            <h5 class="font-weight-bold text-dark mb-3">Customer Reviews</h5>
+            <div id="reviewFormContainer" class="mb-4"></div>
+            <div id="reviewsList"><p class="text-muted">Loading reviews...</p></div>
           </div>
         `);
 
-        if (stock <= 0) $('#confirmAddToCart').hide();
+        if (isOutOfStock) $('#confirmAddToCart').hide();
         else $('#confirmAddToCart').show();
 
         $('#productDetailsModal').modal('show');
@@ -302,46 +377,78 @@ $(document).ready(function () {
     });
   });
 
+  // Handle Increment/Decrement Buttons inside Details Modal
+  $(document).on('click', '#qtyMinusBtn', function () {
+    const $input = $('#detailsQty');
+    let val = parseInt($input.val() || '1', 10);
+    if (val > 1) {
+      $input.val(val - 1);
+    }
+  });
+
+  $(document).on('click', '#qtyPlusBtn', function () {
+    const $input = $('#detailsQty');
+    const max = parseInt($input.attr('max') || '1', 10);
+    let val = parseInt($input.val() || '1', 10);
+    if (val < max) {
+      $input.val(val + 1);
+    }
+  });
+
   // ============================================================
   // Reviews
   // ============================================================
 
   function loadReviewsSection(itemId) {
     const token = sessionStorage.getItem('token');
+    loggedInUserReview = null; // reset state
 
-    $.ajax({
-      method: 'GET',
-      url: `${url}api/v1/items/${itemId}/reviews`,
-      dataType: 'json',
-      success: function (res) {
-        renderReviewsList(res.reviews || []);
-      },
-      error: function () {
-        $('#reviewsList').html('<p class="text-danger">Failed to load reviews.</p>');
-      }
-    });
+    const fetchAllReviews = () => {
+      $.ajax({
+        method: 'GET',
+        url: `${url}api/v1/items/${itemId}/reviews`,
+        dataType: 'json',
+        success: function (res) {
+          renderReviewsList(res.reviews || []);
+        },
+        error: function () {
+          $('#reviewsList').html('<p class="text-danger">Failed to load reviews.</p>');
+        }
+      });
+    };
 
     if (!token) {
-      $('#reviewFormContainer').html('<p class="text-muted"><a href="login.html">Log in</a> to write a review.</p>');
+      $('#reviewFormContainer').html(`
+        <div class="alert alert-light border text-center py-3">
+          <p class="mb-2 text-muted">Want to leave feedback for this product?</p>
+          <a href="login.html" class="btn btn-sm px-4 text-white" style="background-color: #1a2340;">Log in</a>
+        </div>
+      `);
+      fetchAllReviews();
       return;
     }
 
+    // Check eligibility
     $.ajax({
       method: 'GET',
       url: `${url}api/v1/items/${itemId}/reviews/eligibility`,
       headers: { Authorization: `Bearer ${token}` },
       dataType: 'json',
       success: function (res) {
-        if (res.alreadyReviewed) {
-          renderMyReviewCard(itemId, res.existingReview);
+        if (res.alreadyReviewed && res.existingReview) {
+          // Store existing review to intercept in list rendering
+          loggedInUserReview = res.existingReview;
+          $('#reviewFormContainer').empty(); // Keep top container clean & quiet
         } else if (res.canReview) {
           renderReviewForm(itemId, null);
         } else {
-          $('#reviewFormContainer').html('<p class="text-muted">Only customers who received this item can leave a review.</p>');
+          $('#reviewFormContainer').html('<p class="text-muted small italic">Only customers who received this item can leave a review.</p>');
         }
+        fetchAllReviews();
       },
       error: function () {
         $('#reviewFormContainer').empty();
+        fetchAllReviews();
       }
     });
   }
@@ -349,40 +456,58 @@ $(document).ready(function () {
   function renderReviewsList(reviews) {
     const $list = $('#reviewsList');
     if (!reviews || reviews.length === 0) {
-      $list.html('<p class="text-muted">No reviews yet. Be the first to review this product!</p>');
+      $list.html('<p class="text-muted italic">No reviews yet. Be the first to review this product!</p>');
       return;
     }
 
-    const html = reviews.map((r) => `
-      <div class="border-bottom py-2">
-        <div class="d-flex justify-content-between">
-          <strong>${r.reviewerName}</strong>
-          <small class="text-muted">${new Date(r.createdAt).toLocaleDateString()}</small>
+    const html = reviews.map((r) => {
+      const initial = r.reviewerName ? r.reviewerName.charAt(0).toUpperCase() : '?';
+      
+      // Determine if this review belongs to the currently logged-in user
+      const isMyReview = loggedInUserReview && 
+        (r.reviewId === loggedInUserReview.reviewId || r.id === loggedInUserReview.reviewId);
+
+      const actionButtons = isMyReview ? `
+        <div class="ml-auto">
+          <button class="btn btn-xs btn-link text-secondary p-0 btn-edit-review" 
+                  data-id="${loggedInUserReview.reviewId}" 
+                  data-rating="${loggedInUserReview.rating}" 
+                  data-comment="${$('<div>').text(loggedInUserReview.comment || '').html()}">
+            <i class="fas fa-edit"></i> Edit
+          </button>
+          <span class="text-muted mx-1">|</span>
+          <button class="btn btn-xs btn-link text-danger p-0 btn-delete-review" 
+                  data-id="${loggedInUserReview.reviewId}" 
+                  data-item-id="${$('#detailsItemId').val()}">
+            <i class="fas fa-trash"></i> Delete
+          </button>
         </div>
-        <div>${buildStaticStarsHtml(r.rating)}</div>
-        ${r.comment ? `<p class="mb-0 mt-1">${$('<div>').text(r.comment).html()}</p>` : ''}
-      </div>
-    `).join('');
+      ` : '';
+
+      return `
+        <div class="review-card" style="${isMyReview ? 'border-left: 4px solid #b08d57;' : ''}">
+          <div class="d-flex align-items-start mb-2">
+            <div class="review-avatar mr-2" style="${isMyReview ? 'background-color: #1a2340;' : ''}">${initial}</div>
+            <div class="flex-grow-1">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <strong class="text-dark">${r.reviewerName}</strong>
+                  ${isMyReview ? '<span class="badge badge-secondary ml-2 font-weight-normal text-xs" style="font-size: 0.7rem; background-color: #b08d57;">Your Review</span>' : ''}
+                </div>
+                <small class="text-muted">${new Date(r.createdAt).toLocaleDateString()}</small>
+              </div>
+              <div class="d-flex align-items-center mt-1">
+                <div>${buildStaticStarsHtml(r.rating)}</div>
+                ${actionButtons}
+              </div>
+            </div>
+          </div>
+          ${r.comment ? `<p class="mb-0 text-secondary mt-2 pl-1">${$('<div>').text(r.comment).html()}</p>` : ''}
+        </div>
+      `;
+    }).join('');
 
     $list.html(html);
-  }
-
-  function renderMyReviewCard(itemId, review) {
-    $('#reviewFormContainer').html(`
-      <div class="alert alert-light border">
-        <div class="d-flex justify-content-between align-items-start">
-          <div>
-            <strong>Your Review</strong>
-            <div>${buildStaticStarsHtml(review.rating)}</div>
-            ${review.comment ? `<p class="mb-0 mt-1">${$('<div>').text(review.comment).html()}</p>` : ''}
-          </div>
-          <div>
-            <button class="btn btn-sm btn-outline-secondary btn-edit-review" data-id="${review.reviewId}" data-rating="${review.rating}" data-comment="${$('<div>').text(review.comment || '').html()}">Edit</button>
-            <button class="btn btn-sm btn-outline-danger btn-delete-review" data-id="${review.reviewId}" data-item-id="${itemId}">Delete</button>
-          </div>
-        </div>
-      </div>
-    `);
   }
 
   function renderReviewForm(itemId, existingReview) {
@@ -391,15 +516,15 @@ $(document).ready(function () {
     const existingComment = existingReview ? existingReview.comment || '' : '';
 
     $('#reviewFormContainer').html(`
-      <div class="card card-body bg-light">
-        <label class="mb-1">${isEdit ? 'Edit your review' : 'Write a review'}</label>
+      <div class="card card-body border-light bg-light">
+        <h6 class="font-weight-bold text-dark mb-1">${isEdit ? 'Edit your review' : 'Write a review'}</h6>
         ${buildStarInputHtml(selectedRating)}
-        <textarea id="reviewComment" class="form-control mt-2" rows="2" placeholder="Share your thoughts about this product (optional)">${existingComment}</textarea>
-        <div class="mt-2">
-          <button class="btn btn-primary btn-sm" id="submitReviewBtn" data-item-id="${itemId}" data-review-id="${isEdit ? existingReview.reviewId : ''}">
+        <textarea id="reviewComment" class="form-control mt-2" rows="3" placeholder="Share your experience with this product...">${existingComment}</textarea>
+        <div class="mt-3">
+          <button class="btn text-white btn-sm px-4" id="submitReviewBtn" data-item-id="${itemId}" data-review-id="${isEdit ? existingReview.reviewId : ''}" style="background-color: #1a2340;">
             ${isEdit ? 'Update Review' : 'Submit Review'}
           </button>
-          ${isEdit ? '<button class="btn btn-secondary btn-sm ml-1" id="cancelEditReviewBtn">Cancel</button>' : ''}
+          ${isEdit ? '<button class="btn btn-outline-secondary btn-sm ml-1 px-3" id="cancelEditReviewBtn">Cancel</button>' : ''}
         </div>
       </div>
     `);
@@ -454,7 +579,10 @@ $(document).ready(function () {
     const rating = $(this).data('rating');
     const comment = $(this).data('comment');
     const itemId = $('#detailsItemId').val();
+    
+    // Smoothly scroll to top of details card and append dynamic review form inline
     renderReviewForm(itemId, { reviewId, rating, comment });
+    document.getElementById('reviewFormContainer').scrollIntoView({ behavior: 'smooth' });
   });
 
   $(document).on('click', '#cancelEditReviewBtn', function () {
@@ -539,10 +667,6 @@ $(document).ready(function () {
     $('#searchResults').hide().empty();
   }
 
-  function makeRoomForDropdown() {
-    // intentionally left as a no-op
-  }
-
   function renderFilteredGrid(rows) {
     isSearchActive = true;
     $('#itemsEnd').addClass('d-none');
@@ -555,6 +679,7 @@ $(document).ready(function () {
 
     const cardsHtml = rows.map(buildItemCard).join('');
     $('#items').html(`<div class="row" id="itemsRow">${cardsHtml}</div>`);
+    applySidebarFiltersClientSide();
   }
 
   function restoreDefaultGrid() {
@@ -574,7 +699,6 @@ $(document).ready(function () {
     if (!rows || rows.length === 0) {
       $results.append('<div class="search-item search-no-results">No products found.</div>');
       $results.show();
-      makeRoomForDropdown();
       return;
     }
 
@@ -593,7 +717,7 @@ $(document).ready(function () {
           <img src="${itemImgSrc}" alt="${item.description}">
           <div class="search-item-info">
             <div class="search-item-name">${item.description}</div>
-            <div class="search-item-price">₱${Number(item.sell_price).toFixed(2)}</div>
+            <div class="search-item-price">₱${Number(item.sell_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
           </div>
         </div>
       `);
@@ -623,7 +747,6 @@ $(document).ready(function () {
     });
 
     $results.show();
-    makeRoomForDropdown();
   }
 
   $(document).on('input', '#productSearch', function () {
@@ -631,9 +754,6 @@ $(document).ready(function () {
 
     clearTimeout(searchDebounce);
     if (searchRequest && searchRequest.abort) searchRequest.abort();
-
-    $('.brand-nav-link').removeClass('active');
-    $('.brand-nav-link[data-brand-id=""]').addClass('active');
 
     if (query.length < 2) {
       closeSearchResults();
@@ -661,7 +781,6 @@ $(document).ready(function () {
           $('#searchResults')
             .html('<div class="search-item search-no-results">Search failed. Try again.</div>')
             .show();
-          makeRoomForDropdown();
         }
       });
     }, 300);
@@ -678,7 +797,7 @@ $(document).ready(function () {
   });
 
   // ============================================================
-  // 5. Brand Nav Bar
+  // 5. Sidebar Brand and Category Filters Integration
   // ============================================================
 
   function loadBrands() {
@@ -691,47 +810,132 @@ $(document).ready(function () {
 
         const linksHtml = brands.map((brand) => {
           const id = brand.brand_id ?? brand.id;
-          return `<li><a href="#" class="brand-nav-link" data-brand-id="${id}">${brand.name}</a></li>`;
+          return `
+            <label class="filter-checkbox-label">
+              <input type="checkbox" class="brand-filter-checkbox" value="${id}">
+              ${brand.name}
+            </label>
+          `;
         }).join('');
 
-        $('#brandNavList').append(linksHtml);
+        $('#brandFilterList').append(linksHtml);
       },
       error: function () {
-        console.error('Failed to load brands for the nav bar.');
+        console.error('Failed to load brands for filters.');
       }
     });
   }
 
   loadBrands();
 
-  $(document).on('click', '.brand-nav-link', function (e) {
-    e.preventDefault();
-
-    const brandId = $(this).data('brand-id');
-
-    $('.brand-nav-link').removeClass('active');
-    $(this).addClass('active');
-
-    $('#productSearch').val('');
-    closeSearchResults();
-
-    if (!brandId) {
-      restoreDefaultGrid();
-      return;
+  // Handle sidebar checkbox filters (Brands)
+  $(document).on('change', '.brand-filter-checkbox', function () {
+    const val = $(this).val();
+    if (val === "") {
+      // If "All Brands" is selected, uncheck others
+      $('.brand-filter-checkbox').not(this).prop('checked', false);
+    } else {
+      // Uncheck "All Brands" if single brand selected
+      $('.brand-filter-checkbox[value=""]').prop('checked', false);
     }
 
-    $.ajax({
-      method: 'GET',
-      url: `${url}api/v1/items`,
-      data: { brand_id: brandId, limit: 100 },
-      dataType: 'json',
-      success: function (res) {
-        if (!res.success) return;
-        renderFilteredGrid(res.rows || []);
-      },
-      error: function () {
-        Swal.fire({ icon: 'error', text: 'Could not load products for this brand.' });
+    updateActiveFiltersObject();
+  });
+
+  // Handle sidebar checkbox filters (Categories)
+  $(document).on('change', '.category-filter-checkbox', function () {
+    const val = $(this).val();
+    if (val === "") {
+      $('.category-filter-checkbox').not(this).prop('checked', false);
+    } else {
+      $('.category-filter-checkbox[value=""]').prop('checked', false);
+    }
+
+    updateActiveFiltersObject();
+  });
+
+  function updateActiveFiltersObject() {
+    // Brands
+    const brandVals = [];
+    $('.brand-filter-checkbox:checked').each(function () {
+      if ($(this).val() !== "") brandVals.push($(this).val());
+    });
+    activeFilters.brands = brandVals;
+
+    // Categories
+    const categoryVals = [];
+    $('.category-filter-checkbox:checked').each(function () {
+      if ($(this).val() !== "") categoryVals.push($(this).val().toLowerCase());
+    });
+    activeFilters.categories = categoryVals;
+
+    // Price
+    const minVal = parseFloat($('#minPriceInput').val());
+    const maxVal = parseFloat($('#maxPriceInput').val());
+    activeFilters.minPrice = isNaN(minVal) ? null : minVal;
+    activeFilters.maxPrice = isNaN(maxVal) ? null : maxVal;
+  }
+
+  // Trigger filters application
+  $(document).on('click', '#applyFiltersBtn', function () {
+    updateActiveFiltersObject();
+    applySidebarFiltersClientSide();
+  });
+
+  // Reset filters
+  $(document).on('click', '#clearFiltersBtn', function (e) {
+    e.preventDefault();
+    $('.brand-filter-checkbox').prop('checked', false);
+    $('.brand-filter-checkbox[value=""]').prop('checked', true);
+
+    $('.category-filter-checkbox').prop('checked', false);
+    $('.category-filter-checkbox[value=""]').prop('checked', true);
+
+    $('#minPriceInput').val('');
+    $('#maxPriceInput').val('');
+
+    activeFilters = { brands: [], categories: [], minPrice: null, maxPrice: null };
+    applySidebarFiltersClientSide();
+  });
+
+  // Apply filters logic on DOM components
+  function applySidebarFiltersClientSide() {
+    let matchCount = 0;
+
+    $('.product-card-container').each(function () {
+      const cardBrandId = $(this).attr('data-brand-id') || '';
+      const cardCategory = ($(this).attr('data-category') || '').trim();
+      const cardPrice = parseFloat($(this).attr('data-price') || '0');
+
+      let brandMatch = activeFilters.brands.length === 0 || activeFilters.brands.includes(cardBrandId);
+      let categoryMatch = activeFilters.categories.length === 0 || activeFilters.categories.includes(cardCategory);
+      let priceMatch = true;
+
+      if (activeFilters.minPrice !== null && cardPrice < activeFilters.minPrice) {
+        priceMatch = false;
+      }
+      if (activeFilters.maxPrice !== null && cardPrice > activeFilters.maxPrice) {
+        priceMatch = false;
+      }
+
+      if (brandMatch && categoryMatch && priceMatch) {
+        $(this).removeClass('d-none');
+        matchCount++;
+      } else {
+        $(this).addClass('d-none');
       }
     });
-  });
+
+    // Handle display message if matches are zero
+    $('#noProductsMatchAlert').remove();
+    if (matchCount === 0 && $('.product-card-container').length > 0) {
+      $('#itemsRow').append(`
+        <div id="noProductsMatchAlert" class="col-12 py-5 text-center text-muted">
+          <i class="fas fa-filter fa-2x mb-3 text-secondary"></i>
+          <p class="font-weight-bold mb-1">No products match your active filters.</p>
+          <p class="small">Try expanding your price range or switching brands/categories.</p>
+        </div>
+      `);
+    }
+  }
 });

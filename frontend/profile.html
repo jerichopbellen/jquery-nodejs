@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.16.1/sweetalert2.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
   <!-- common -->
-<script src="js/header.js"></script>
+  <script src="js/header.js"></script>
 
   <!-- page -->
   <script src="js/profile.js"></script>
@@ -22,24 +22,109 @@
 <body id="profile">
   <div id="header"></div>
 
-  <div class="container">
-      <h1 class="mt-3 text-center">User Profile</h1>
-    <form id="profileForm" enctype="multipart/form-data">
-  <div class="form-group">
-    <label for="avatar">Avatar:</label>
-    <input type="file" id="avatar" name="image" accept="image/*" class="form-control" disabled /> <!-- added disabled -->
-    <img id="avatarPreview" src="" alt="Avatar Preview" style="display:none;max-width:120px;margin-top:10px;" />
-  </div>
-  <div class="form-group"><label>First Name:</label><input type="text" id="firstName" name="fname" class="form-control" readonly /><div class="invalid-feedback">First name is required.</div></div>
-  <div class="form-group"><label>Last Name:</label><input type="text" id="lastName" name="lname" class="form-control" readonly /><div class="invalid-feedback">Last name is required.</div></div>
-  <div class="form-group"><label>Address:</label><input type="text" id="address" name="addressline" class="form-control" readonly /><div class="invalid-feedback">Address is required.</div></div>
-  <div class="form-group"><label>Phone:</label><input type="text" id="phone" name="phone" class="form-control" readonly /><div class="invalid-feedback">Phone is required.</div></div>
-  <div class="form-group"><label>Postcode:</label><input type="text" id="zipcode" name="zipcode" class="form-control" readonly /><div class="invalid-feedback">Postcode is required.</div></div>
+  <div class="container my-5">
+    <div class="text-center mb-5">
+      <h1 class="font-weight-bold">Personal Profile Catalogue</h1>
+      <p class="text-muted">Manage your personal identification details, delivery records, and account credentials</p>
+    </div>
 
-  <button type="button" id="editBtn" class="btn btn-secondary">Edit</button>            <!-- new -->
-  <button type="submit" id="updateBtn" class="btn btn-primary" style="display:none;">Submit</button> <!-- added style:none -->
-  <button type="button" id="cancelBtn" class="btn btn-outline-secondary" style="display:none;">Cancel</button> <!-- new -->
-</form>
+    <!-- Main Dynamic Form Wrapper -->
+    <form id="profileForm" enctype="multipart/form-data" class="p-0 border-0 bg-transparent box-shadow-none" style="max-width: 100%; box-shadow: none;">
+      <div class="row">
+        
+        <!-- Left Side Column: Profile Identity Card -->
+        <div class="col-lg-4 mb-4">
+          <div class="profile-sidebar-card">
+            
+            <div class="avatar-upload-wrapper">
+              <div class="avatar-preview-container" id="avatarPreviewContainer">
+                <img id="avatarPreview" src="" alt="Avatar Preview" style="display:none;" />
+                <div class="avatar-overlay">
+                  <i class="fas fa-camera fa-lg mb-1"></i>
+                  <span>Change Photo</span>
+                </div>
+              </div>
+              
+              <!-- Hidden dynamic file selector field -->
+              <input type="file" id="avatar" name="image" accept="image/*" class="d-none" disabled />
+              <p class="text-muted small mt-3 mb-0">Supported files: JPG, PNG.<br>Select Edit to modify details.</p>
+            </div>
+
+            <div class="profile-user-name" id="profileSidebarFullName">User Profile</div>
+            <div class="profile-user-tag">Technexus Member</div>
+
+            <hr class="my-4" style="border-top-color: var(--border-color);">
+
+            <!-- Profile Interactive Actions Buttons Panel -->
+            <div class="px-2">
+              <button type="button" id="editBtn" class="btn btn-secondary btn-block">
+                <i class="fas fa-user-edit mr-2"></i> Edit Details
+              </button>            
+              <button type="submit" id="updateBtn" class="btn btn-primary btn-block px-4 font-weight-bold mb-2" style="display:none; background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%); border: none;">
+                <i class="fas fa-check-circle mr-2"></i> Save Changes
+              </button>
+              <button type="button" id="cancelBtn" class="btn btn-outline-secondary btn-block" style="display:none;">
+                Cancel
+              </button>
+            </div>
+            
+          </div>
+        </div>
+
+        <!-- Right Side Column: Personal Information Form -->
+        <div class="col-lg-8">
+          <div class="profile-data-card">
+            <h4 class="profile-data-section-title">Personal Information</h4>
+            
+            <div class="row">
+              <div class="col-md-6">
+                <div class="form-group">
+                  <label for="firstName">First Name</label>
+                  <input type="text" id="firstName" name="fname" class="form-control" readonly />
+                  <div class="invalid-feedback">First name is required.</div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="form-group">
+                  <label for="lastName">Last Name</label>
+                  <input type="text" id="lastName" name="lname" class="form-control" readonly />
+                  <div class="invalid-feedback">Last name is required.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="row mt-2">
+              <div class="col-md-6">
+                <div class="form-group">
+                  <label for="phone">Phone Number</label>
+                  <input type="text" id="phone" name="phone" class="form-control" readonly />
+                  <div class="invalid-feedback">Phone number is required.</div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="form-group">
+                  <label for="zipcode">Zipcode / Postcode</label>
+                  <input type="text" id="zipcode" name="zipcode" class="form-control" readonly />
+                  <div class="invalid-feedback">Postcode is required.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="row mt-2">
+              <div class="col-12">
+                <div class="form-group mb-0">
+                  <label for="address">Delivery Address</label>
+                  <input type="text" id="address" name="addressline" class="form-control" readonly />
+                  <div class="invalid-feedback">Address is required.</div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </form>
   </div>
 </body>
 </html>

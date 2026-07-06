@@ -25,6 +25,14 @@ $(document).ready(function () {
     $('#phone').val(profile.phone || '');
     $('#zipcode').val(profile.zipcode || '');
 
+    // Set Sidebar Display Full Name cleanly
+    if (profile.firstName || profile.lastName) {
+      const fullDisplay = [profile.firstName, profile.lastName].filter(Boolean).join(' ').trim();
+      $('#profileSidebarFullName').text(fullDisplay);
+    } else {
+      $('#profileSidebarFullName').text('User Profile');
+    }
+
     const avatar = profile.avatar || '';
     if (avatar) {
       $('#avatarPreview').attr('src', `${url}${avatar}`).show();
@@ -33,13 +41,17 @@ $(document).ready(function () {
     }
   }
 
-  // --- new: display/edit mode helpers ---
+  // --- display/edit mode helpers ---
   const $textInputs = $('#firstName, #lastName, #address, #phone, #zipcode');
   let lastLoadedProfile = null;
 
   function showDisplayMode() {
     $textInputs.attr('readonly', true).removeClass('is-invalid');
     $('#avatar').attr('disabled', true);
+    
+    // Update container overlay class states
+    $('#avatarPreviewContainer').removeClass('editable-active');
+    
     $('#editBtn').show();
     $('#updateBtn').hide();
     $('#cancelBtn').hide();
@@ -48,10 +60,21 @@ $(document).ready(function () {
   function showEditMode() {
     $textInputs.removeAttr('readonly');
     $('#avatar').removeAttr('disabled');
+    
+    // Allow interactive hovering on avatar
+    $('#avatarPreviewContainer').addClass('editable-active');
+    
     $('#editBtn').hide();
     $('#updateBtn').show();
     $('#cancelBtn').show();
   }
+
+  // Interactive Avatar Click Handler: Routes clicks to the file field when editable
+  $('#avatarPreviewContainer').on('click', function () {
+    if ($(this).hasClass('editable-active')) {
+      $('#avatar').trigger('click');
+    }
+  });
 
   $('#editBtn').on('click', showEditMode);
 
@@ -59,7 +82,6 @@ $(document).ready(function () {
     if (lastLoadedProfile) setProfileForm(lastLoadedProfile);
     showDisplayMode();
   });
-  // --- end new ---
 
   function loadProfile() {
     $.ajax({
@@ -69,10 +91,10 @@ $(document).ready(function () {
       headers: { Authorization: `Bearer ${token}` },
       success: function (data) {
         if (data?.data) {
-          lastLoadedProfile = data.data; // new
+          lastLoadedProfile = data.data;
           setProfileForm(data.data);
         }
-        showDisplayMode(); // new
+        showDisplayMode();
       },
       error: function (error) {
         if (error.status === 401) {
@@ -105,7 +127,7 @@ $(document).ready(function () {
       });
     }
 
-    // --- new: validation before submit ---
+    // --- validation before submit ---
     let isValid = true;
     $textInputs.removeClass('is-invalid');
     $textInputs.each(function () {
@@ -117,7 +139,6 @@ $(document).ready(function () {
     if (!isValid) {
       return Swal.fire({ icon: 'warning', text: 'Please fill in all required fields.' });
     }
-    // --- end new ---
 
     const formData = new FormData($('#profileForm')[0]);
 
@@ -131,7 +152,7 @@ $(document).ready(function () {
       headers: { Authorization: `Bearer ${token}` },
       success: function (data) {
         if (data?.data) {
-          lastLoadedProfile = data.data; // new
+          lastLoadedProfile = data.data;
           setProfileForm(data.data);
           if (data.data.firstName || data.data.lastName) {
             const displayName = [data.data.firstName, data.data.lastName].filter(Boolean).join(' ').trim();
@@ -139,7 +160,7 @@ $(document).ready(function () {
           }
         }
         Swal.fire({ icon: 'success', text: data.message || 'Profile updated' });
-        showDisplayMode(); // new
+        showDisplayMode();
       },
       error: function (error) {
         if (error.status === 401) {
