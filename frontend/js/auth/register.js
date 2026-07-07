@@ -11,7 +11,11 @@ $(document).ready(function () {
   // jQuery Validation Module for Registration Form
   $('#registerForm').validate({
     rules: {
-      name: {
+      firstName: {
+        required: true,
+        minlength: 2
+      },
+      lastName: {
         required: true,
         minlength: 2
       },
@@ -25,9 +29,13 @@ $(document).ready(function () {
       }
     },
     messages: {
-      name: {
-        required: "Please enter your full name.",
-        minlength: "Name must be at least 2 characters long."
+      firstName: {
+        required: "Please enter your first name.",
+        minlength: "First name must be at least 2 characters long."
+      },
+      lastName: {
+        required: "Please enter your last name.",
+        minlength: "Last name must be at least 2 characters long."
       },
       email: {
         required: "Please enter your email address.",
@@ -52,14 +60,15 @@ $(document).ready(function () {
 
     // Runs automatically ONLY when all fields pass validation rules
     submitHandler: function(form) {
-      const name = $('#name').val().trim();
+      const firstName = $('#firstname').val().trim();
+      const lastName = $('#lastname').val().trim();
       const email = $('#email').val().trim();
       const password = $('#password').val();
 
       $.ajax({
         method: 'POST',
         url: `${url}api/v1/register`,
-        data: JSON.stringify({ name, email, password }),
+        data: JSON.stringify({ firstName, lastName, email, password }),
         processData: false,
         contentType: 'application/json; charset=utf-8',
         dataType: 'json',

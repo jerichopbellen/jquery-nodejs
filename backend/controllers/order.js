@@ -37,7 +37,8 @@ function formatOrder(order, includeCustomer = false) {
   }
 
   if (includeCustomer && order.user) {
-    base.customerName = order.user.name;
+    // Combines first_name and last_name to recreate the custom name property
+    base.customerName = `${order.user.first_name || ''} ${order.user.last_name || ''}`.trim();
     base.customerEmail = order.user.email;
   }
 
@@ -102,6 +103,8 @@ exports.createOrder = async (req, res) => {
         </tr>
       `).join('');
 
+      const customerName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+
       const html = `
         <div style="font-family: Arial, sans-serif; max-width:640px; margin:0 auto; color:#333; background:#fff;">
           <div style="background:#1a1a2e; padding:24px; text-align:center;">
@@ -109,7 +112,7 @@ exports.createOrder = async (req, res) => {
           </div>
 
           <div style="padding:28px 32px;">
-            <p style="font-size:16px; margin-top:0;">Hi ${user.name},</p>
+            <p style="font-size:16px; margin-top:0;">Hi ${customerName},</p>
 
             <p style="font-size:15px; line-height:1.6;">
               Thank you for your order! We've received it and it's now being prepared for processing.
@@ -284,7 +287,7 @@ exports.getAllOrders = async (req, res) => {
   try {
     const orders = await Order.findAll({
       include: [
-        { model: User, as: 'user', attributes: ['name', 'email'] },
+        { model: User, as: 'user', attributes: ['first_name', 'last_name', 'email'] },
         {
           model: OrderItem,
           as: 'items',
@@ -323,7 +326,7 @@ exports.updateOrderStatus = async (req, res) => {
 
     const order = await Order.findByPk(id, {
       include: [
-        { model: User, as: 'user', attributes: ['name', 'email'] },
+        { model: User, as: 'user', attributes: ['first_name', 'last_name', 'email'] },
         {
           model: OrderItem,
           as: 'items',

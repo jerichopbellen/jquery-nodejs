@@ -3,27 +3,15 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const path = require('path');
 
-function splitFullName(fullName) {
-  const normalized = String(fullName || '').trim().replace(/\s+/g, ' ');
-  if (!normalized) {
-    return { firstName: '', lastName: '' };
-  }
-
-  const parts = normalized.split(' ');
-  const firstName = parts.shift() || '';
-  const lastName = parts.join(' ');
-
-  return { firstName, lastName };
-}
-
 function isBcryptHash(value) {
   return typeof value === 'string' && /^\$2[aby]?\$\d{2}\$/.test(value);
 }
 
 function buildUserProfile(user) {
+  const computedFullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
   return {
     userId: user.user_id,
-    name: user.name,
+    name: computedFullName, // Combines names on the fly for backwards compatibility
     email: user.email,
     avatar: user.avatar || '',
     firstName: user.first_name || '',
@@ -39,13 +27,10 @@ function buildUserProfile(user) {
 // 1. REGISTER USER
 const registerUser = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
-    if (!name || !email || !password) {
-      return res.status(400).json({ success: false, message: 'name, email, password are required' });
+    const { firstName, lastName, email, password } = req.body;
+    if (!firstName || !lastName || !email || !password) {
+      return res.status(400).json({ success: false, message: 'firstName, lastName, email, and password are required' });
     }
-
-    const { firstName, lastName } = splitFullName(name);
-    const fullName = [firstName, lastName].filter(Boolean).join(' ').trim() || name.trim();
 
     const userExists = await User.findOne({ where: { email } });
     if (userExists) {
@@ -55,14 +40,15 @@ const registerUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = await User.create({
-      name: fullName,
       email,
       password: hashedPassword,
-      first_name: firstName,
-      last_name: lastName,
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
       role: 'customer',
       is_active: true
     });
+
+    const computedName = `${newUser.first_name} ${newUser.last_name}`.trim();
 
     return res.status(201).json({
       success: true,
@@ -70,7 +56,7 @@ const registerUser = async (req, res) => {
       userId: newUser.user_id,
       user: {
         id: newUser.user_id,
-        name: newUser.name,
+        name: computedName,
         email: newUser.email,
         firstName: newUser.first_name || '',
         lastName: newUser.last_name || '',
@@ -118,12 +104,14 @@ const loginUser = async (req, res) => {
       { expiresIn: '7d' }
     );
 
+    const computedName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+
     return res.status(200).json({
       success: true,
       token,
       user: {
         id: user.user_id,
-        name: user.name,
+        name: computedName,
         email: user.email,
         firstName: user.first_name || '',
         lastName: user.last_name || '',
@@ -139,13 +127,24 @@ const loginUser = async (req, res) => {
 const getAllUsers = async (req, res) => {
   try {
     const users = await User.findAll({
-      attributes: ['user_id', 'name', 'email', 'role', 'is_active'],
+      attributes: ['user_id', 'first_name', 'last_name', 'email', 'role', 'is_active'],
       order: [['user_id', 'DESC']]
     });
 
+    // Maps results so any tables relying on a combined "name" column do not break
+    const rows = users.map(u => ({
+      user_id: u.user_id,
+      first_name: u.first_name,
+      last_name: u.last_name,
+      name: `${u.first_name || ''} ${u.last_name || ''}`.trim(),
+      email: u.email,
+      role: u.role,
+      is_active: u.is_active
+    }));
+
     return res.status(200).json({
       success: true,
-      rows: users
+      rows
     });
   } catch (e) {
     return res.status(500).json({ success: false, message: e.message });
@@ -156,7 +155,7 @@ const getAllUsers = async (req, res) => {
 const adminUpdateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, role, is_active } = req.body;
+    const { firstName, lastName, email, role, is_active } = req.body;
 
     const user = await User.findByPk(id);
     if (!user) {
@@ -164,7 +163,8 @@ const adminUpdateUser = async (req, res) => {
     }
 
     await user.update({
-      name: name ?? user.name,
+      first_name: firstName ?? user.first_name,
+      last_name: lastName ?? user.last_name,
       email: email ?? user.email,
       role: role ?? user.role,
       is_active: typeof is_active === 'boolean' ? is_active : user.is_active
@@ -207,7 +207,6 @@ const getMyProfile = async (req, res) => {
     const user = await User.findByPk(req.user.id, {
       attributes: [
         'user_id',
-        'name',
         'email',
         'avatar',
         'first_name',

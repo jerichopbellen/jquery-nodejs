@@ -29,9 +29,16 @@
             <form id="registerForm">
               <h2 class="text-center mb-4" style="color: #2c3550; font-weight: bold; letter-spacing: 0.5px;">Register</h2>
 
-              <div class="form-group" style="margin-bottom: 20px;">
-                <label for="name" style="font-weight: 500; color: #4a5568; font-size: 14px;">Full Name</label>
-                <input type="text" id="name" name="name" class="form-control" style="padding: 10px; height: auto;" placeholder="Your Name" />
+              <!-- Row container to place First Name and Last Name side-by-side -->
+              <div class="form-row" style="margin-bottom: 20px;">
+                <div class="col-6">
+                  <label for="firstname" style="font-weight: 500; color: #4a5568; font-size: 14px;">First Name</label>
+                  <input type="text" id="firstname" name="firstname" class="form-control" style="padding: 10px; height: auto;" placeholder="Your First Name" />
+                </div>
+                <div class="col-6">
+                  <label for="lastname" style="font-weight: 500; color: #4a5568; font-size: 14px;">Last Name</label>
+                  <input type="text" id="lastname" name="lastname" class="form-control" style="padding: 10px; height: auto;" placeholder="Your Last Name" />
+                </div>
               </div>
 
               <div class="form-group" style="margin-bottom: 20px;">
