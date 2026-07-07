@@ -267,7 +267,7 @@ $(document).ready(function () {
           `;
           carouselItems += `
             <div class="carousel-item ${isActive}">
-              <img class="d-block w-100" src="${url}${img}" alt="Slide ${index}" style="height: 420px; object-fit: contain;">
+              <img class="d-block w-100" src="${url}${img}" alt="Slide ${index}" style="height: 420px; object-fit: cover;">
             </div>
           `;
         });
