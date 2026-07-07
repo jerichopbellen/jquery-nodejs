@@ -16,6 +16,23 @@ async function hasDeliveredPurchase(userId, itemId) {
   return count > 0;
 }
 
+// Helper: basic bad-word filter — replace matched words with asterisks
+// Add/remove words from this list as needed
+const BAD_WORDS = ['tangina', 'bobo', 'tanga', 'gago', 'langya', 'bwiset', 'putangina', 'obobs', 'siraulo'];
+
+function censorComment(text) {
+  if (!text) return text;
+  let filtered = text;
+  BAD_WORDS.forEach((word) => {
+    const regex = new RegExp(`\\b${word}\\b`, 'gi');
+    filtered = filtered.replace(regex, (match) => {
+      if (match.length <= 2) return '*'.repeat(match.length);
+      return match[0] + '*'.repeat(match.length - 2) + match[match.length - 1];
+    });
+  });
+  return filtered;
+}
+
 function formatReview(review) {
   return {
     reviewId: review.review_id,
@@ -117,7 +134,7 @@ exports.createReview = async (req, res) => {
       item_id: itemId,
       user_id: userId,
       rating: ratingNum,
-      comment: comment || null
+      comment: comment ? censorComment(comment) : null
     });
 
     const withUser = await Review.findByPk(review.review_id, {
@@ -159,7 +176,7 @@ exports.updateReview = async (req, res) => {
       updateFields.rating = ratingNum;
     }
     if (comment !== undefined) {
-      updateFields.comment = comment;
+      updateFields.comment = censorComment(comment);
     }
 
     await review.update(updateFields);
