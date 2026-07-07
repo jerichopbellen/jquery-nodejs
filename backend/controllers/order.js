@@ -1,4 +1,4 @@
-const { User, Order, OrderItem, Item, sequelize } = require('../models');
+const { User, Order, OrderItem, Item, Stock, sequelize } = require('../models');
 const sendEmail = require('../utils/sendEmail');
 const generateReceiptPDF = require('../services/pdfGenerator');
 const getEstimatedDelivery = require('../services/deliveryEstimate');
@@ -330,6 +330,43 @@ exports.updateOrderStatus = async (req, res) => {
 
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    // deduct stock only the first time an order transitions into "shipped"
+    const isNewlyShipped = status === 'shipped' && order.status !== 'shipped';
+
+    if (isNewlyShipped) {
+      const t = await sequelize.transaction();
+      try {
+        for (const line of order.items) {
+          const stock = await Stock.findOne({
+            where: { item_id: line.item_id },
+            transaction: t,
+            lock: t.LOCK.UPDATE
+          });
+
+          if (!stock || stock.quantity < line.quantity_ordered) {
+            await t.rollback();
+            return res.status(400).json({
+              success: false,
+              message: `Insufficient stock for item: ${line.item?.description || line.item_id}`
+            });
+          }
+        }
+
+        for (const line of order.items) {
+          await Stock.decrement('quantity', {
+            by: line.quantity_ordered,
+            where: { item_id: line.item_id },
+            transaction: t
+          });
+        }
+
+        await t.commit();
+      } catch (stockErr) {
+        if (!t.finished) await t.rollback();
+        return res.status(500).json({ success: false, message: stockErr.message });
+      }
     }
 
     const updateFields = { status };
