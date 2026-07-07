@@ -2,8 +2,8 @@ $(document).ready(function () {
   const url = 'http://localhost:5000/';
 
   // If already logged in, redirect away
-  if (sessionStorage.getItem('token')) {
-    const role = sessionStorage.getItem('role');
+  if (localStorage.getItem('token')) {
+    const role = localStorage.getItem('role');
     window.location.href = role === 'admin' ? 'admin-dashboard.html' : 'home.html';
     return;
   }

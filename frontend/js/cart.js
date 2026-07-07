@@ -3,7 +3,7 @@ $(document).ready(function () {
 
   const getCart = () => JSON.parse(localStorage.getItem('cart') || '[]');
   const saveCart = (cart) => localStorage.setItem('cart', JSON.stringify(cart));
-  const getToken = () => sessionStorage.getItem('token') || '';
+  const getToken = () => localStorage.getItem('token') || '';
 
   function renderCartBadge() {
     const cart = getCart();

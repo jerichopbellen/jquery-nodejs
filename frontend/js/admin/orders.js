@@ -1,7 +1,7 @@
 $(document).ready(function () {
   const url = 'http://localhost:5000/';
-  const token = sessionStorage.getItem('token');
-  const role = sessionStorage.getItem('role');
+  const token = localStorage.getItem('token');
+  const role = localStorage.getItem('role');
 
   if (!token) {
     Swal.fire({ icon: 'warning', text: 'Please login first.' }).then(() => {
@@ -54,7 +54,7 @@ $(document).ready(function () {
       error: function (xhr) {
         if (xhr.status === 401) {
           Swal.fire({ icon: 'error', text: 'Session expired. Please log in again.' });
-          sessionStorage.clear();
+          localStorage.clear();
           setTimeout(() => (window.location.href = 'login.html'), 1200);
         } else if (xhr.status === 403) {
           Swal.fire({ icon: 'error', text: 'You do not have access to this page.' });

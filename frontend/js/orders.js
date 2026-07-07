@@ -1,6 +1,6 @@
 $(document).ready(function () {
   const url = 'http://localhost:5000/';
-  const token = sessionStorage.getItem('token') || '';
+  const token = localStorage.getItem('token') || '';
   let allOrders = [];
   let activeFilter = 'active';
 
@@ -158,7 +158,7 @@ $(document).ready(function () {
       },
       error: function (error) {
         if (error.status === 401) {
-          sessionStorage.clear();
+          localStorage.clear();
           return Swal.fire({ icon: 'warning', text: 'Session expired. Please login again.' }).then(() => {
             window.location.href = 'login.html';
           });

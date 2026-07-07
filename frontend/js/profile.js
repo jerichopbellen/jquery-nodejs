@@ -1,8 +1,8 @@
 $(document).ready(function () {
   const url = 'http://localhost:5000/';
 
-  const token = sessionStorage.getItem('token') || '';
-  const userId = Number(sessionStorage.getItem('userId') || 0);
+  const token = localStorage.getItem('token') || '';
+  const userId = Number(localStorage.getItem('userId') || 0);
   const defaultAvatar = 'images/default-gadget.jpg';
 
   if (!token) {
@@ -98,7 +98,7 @@ $(document).ready(function () {
       },
       error: function (error) {
         if (error.status === 401) {
-          sessionStorage.clear();
+          localStorage.clear();
           Swal.fire({ icon: 'warning', text: 'Session expired. Please login again.' }).then(() => {
             window.location.href = 'login.html';
           });
@@ -122,7 +122,7 @@ $(document).ready(function () {
 
     if (!userId) {
       return Swal.fire({ icon: 'error', text: 'Invalid session. Please login again.' }).then(() => {
-        sessionStorage.clear();
+        localStorage.clear();
         window.location.href = 'login.html';
       });
     }
@@ -156,7 +156,7 @@ $(document).ready(function () {
           setProfileForm(data.data);
           if (data.data.firstName || data.data.lastName) {
             const displayName = [data.data.firstName, data.data.lastName].filter(Boolean).join(' ').trim();
-            if (displayName) sessionStorage.setItem('name', displayName);
+            if (displayName) localStorage.setItem('name', displayName);
           }
         }
         Swal.fire({ icon: 'success', text: data.message || 'Profile updated' });
@@ -164,7 +164,7 @@ $(document).ready(function () {
       },
       error: function (error) {
         if (error.status === 401) {
-          sessionStorage.clear();
+          localStorage.clear();
           return Swal.fire({ icon: 'warning', text: 'Session expired. Please login again.' }).then(() => {
             window.location.href = 'login.html';
           });

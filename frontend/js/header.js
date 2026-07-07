@@ -1,8 +1,8 @@
 $(document).ready(function () {
   const getCartCount = () => JSON.parse(localStorage.getItem('cart') || '[]').length;
-  const isLoggedIn = () => !!sessionStorage.getItem('token');
-  const getRole = () => (sessionStorage.getItem('role') || '').toLowerCase().trim();
-  const getDisplayName = () => sessionStorage.getItem('name') || sessionStorage.getItem('email') || 'User';
+  const isLoggedIn = () => !!localStorage.getItem('token');
+  const getRole = () => (localStorage.getItem('role') || '').toLowerCase().trim();
+  const getDisplayName = () => localStorage.getItem('name') || localStorage.getItem('email') || 'User';
 
   // Helper to escape HTML and prevent XSS injections if names contain special characters
   function escapeHtml(str) {
@@ -101,7 +101,7 @@ $(document).ready(function () {
   // Handle Logout Event delegation safely across the document
   $(document).on('click', '#logoutLink', function (e) {
     e.preventDefault();
-    sessionStorage.clear();
+    localStorage.clear();
     window.location.href = 'login.html';
   });
 

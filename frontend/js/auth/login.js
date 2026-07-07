@@ -2,8 +2,8 @@ $(document).ready(function () {
   const url = 'http://localhost:5000/';
 
   // If already logged in, redirect away
-  if (sessionStorage.getItem('token')) {
-    const role = sessionStorage.getItem('role');
+  if (localStorage.getItem('token')) {
+    const role = localStorage.getItem('role');
     window.location.href = role === 'admin' ? 'admin-dashboard.html' : 'home.html';
     return;
   }
@@ -79,11 +79,11 @@ $(document).ready(function () {
             return Swal.fire({ icon: 'error', text: 'Login succeeded but token is missing.' });
           }
 
-          sessionStorage.setItem('token', token);
-          if (userId !== '') sessionStorage.setItem('userId', String(userId));
-          if (user.email) sessionStorage.setItem('email', user.email);
-          if (name) sessionStorage.setItem('name', name);
-          if (role) sessionStorage.setItem('role', role);
+          localStorage.setItem('token', token);
+          if (userId !== '') localStorage.setItem('userId', String(userId));
+          if (user.email) localStorage.setItem('email', user.email);
+          if (name) localStorage.setItem('name', name);
+          if (role) localStorage.setItem('role', role);
 
           Swal.fire({
             icon: 'success',

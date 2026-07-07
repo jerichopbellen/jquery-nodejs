@@ -400,7 +400,7 @@ $(document).ready(function () {
   // ============================================================
 
   function loadReviewsSection(itemId) {
-    const token = sessionStorage.getItem('token');
+    const token = localStorage.getItem('token');
     loggedInUserReview = null; // reset state
 
     const fetchAllReviews = () => {
@@ -541,7 +541,7 @@ $(document).ready(function () {
   });
 
   $(document).on('click', '#submitReviewBtn', function () {
-    const token = sessionStorage.getItem('token');
+    const token = localStorage.getItem('token');
     const itemId = $(this).data('item-id');
     const reviewId = $(this).data('review-id');
     const rating = Number($('#reviewFormContainer .star-input').attr('data-rating')) || 0;
@@ -593,7 +593,7 @@ $(document).ready(function () {
   $(document).on('click', '.btn-delete-review', function () {
     const reviewId = $(this).data('id');
     const itemId = $(this).data('item-id');
-    const token = sessionStorage.getItem('token');
+    const token = localStorage.getItem('token');
 
     Swal.fire({
       icon: 'warning',

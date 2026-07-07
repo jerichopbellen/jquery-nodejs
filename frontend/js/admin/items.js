@@ -1,7 +1,7 @@
 $(document).ready(function () {
   const url = 'http://localhost:5000';
-  const token = sessionStorage.getItem('token');
-  const role = sessionStorage.getItem('role');
+  const token = localStorage.getItem('token');
+  const role = localStorage.getItem('role');
 
   let currentEditId = null;
   let serverImages = [];       // Tracks current images from the DB column
