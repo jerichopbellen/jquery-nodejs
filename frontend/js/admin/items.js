@@ -87,7 +87,8 @@ $(document).ready(function () {
       dataSrc: 'rows',
       headers: { Authorization: `Bearer ${token}` }
     },
-    dom: 'Bfrtip',
+    // Wrapped standard DataTable elements inside Bootstrap grid containers to balance columns
+    dom: "<'row mb-3 align-items-center'<'col-sm-12 col-md-6'B><'col-sm-12 col-md-6 d-flex justify-content-md-end justify-content-start'f>>rtip",
     buttons: [
       'pdf',
       'excel',

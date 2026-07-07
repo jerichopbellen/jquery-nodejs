@@ -38,7 +38,8 @@ $(document).ready(function () {
         });
       }
     },
-    dom: 'Bfrtip',
+    // Placed buttons on the left and pushed search tool to the right
+    dom: "<'row mb-3 align-items-center'<'col-sm-12 col-md-6'B><'col-sm-12 col-md-6 d-flex justify-content-md-end justify-content-start'f>>rtip",
     buttons: ['pdf', 'excel'],
     columns: [
       { data: 'user_id' },
