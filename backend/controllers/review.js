@@ -24,7 +24,7 @@ function formatReview(review) {
     rating: review.rating,
     comment: review.comment,
     createdAt: review.created_at,
-    reviewerName: review.user?.name || 'Anonymous'
+    reviewerName: (review.user?.first_name || '') + ' ' + (review.user?.last_name || '') || 'Anonymous'
   };
 }
 
@@ -37,7 +37,7 @@ exports.getReviewsForItem = async (req, res) => {
 
     const reviews = await Review.findAll({
       where: { item_id: itemId },
-      include: [{ model: User, as: 'user', attributes: ['name'] }],
+      include: [{ model: User, as: 'user', attributes: ['first_name', 'last_name'] }],
       order: [['created_at', 'DESC']]
     });
 
@@ -121,7 +121,7 @@ exports.createReview = async (req, res) => {
     });
 
     const withUser = await Review.findByPk(review.review_id, {
-      include: [{ model: User, as: 'user', attributes: ['name'] }]
+      include: [{ model: User, as: 'user', attributes: ['first_name', 'last_name'] }]
     });
 
     return res.status(201).json({
@@ -165,7 +165,7 @@ exports.updateReview = async (req, res) => {
     await review.update(updateFields);
 
     const withUser = await Review.findByPk(review.review_id, {
-      include: [{ model: User, as: 'user', attributes: ['name'] }]
+      include: [{ model: User, as: 'user', attributes: ['first_name', 'last_name'] }]
     });
 
     return res.status(200).json({
@@ -209,7 +209,7 @@ exports.getMyReviewForItem = async (req, res) => {
 
     const review = await Review.findOne({
       where: { user_id: userId, item_id: itemId },
-      include: [{ model: User, as: 'user', attributes: ['name'] }]
+      include: [{ model: User, as: 'user', attributes: ['first_name', 'last_name'] }]
     });
 
     if (!review) {
@@ -233,7 +233,7 @@ exports.adminGetAllReviews = async (req, res) => {
     const reviews = await Review.findAll({
       where,
       include: [
-        { model: User, as: 'user', attributes: ['name', 'email'] },
+        { model: User, as: 'user', attributes: ['first_name', 'last_name', 'email'] },
         { model: Item, as: 'item', attributes: ['item_id', 'description'] }
       ],
       order: [['created_at', 'DESC']]
@@ -246,7 +246,7 @@ exports.adminGetAllReviews = async (req, res) => {
         itemId: r.item_id,
         itemName: r.item?.description || 'Item',
         userId: r.user_id,
-        reviewerName: r.user?.name || 'Unknown',
+        reviewerName: `${r.user?.first_name || ''} ${r.user?.last_name || ''}` || 'Unknown',
         reviewerEmail: r.user?.email || '',
         rating: r.rating,
         comment: r.comment,
