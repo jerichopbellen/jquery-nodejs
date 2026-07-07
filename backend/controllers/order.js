@@ -9,11 +9,16 @@ function generateTrackingNumber() {
 }
 
 function formatOrder(order, includeCustomer = false) {
+  const calculatedTotal = (order.items || []).reduce(
+    (sum, line) => sum + Number(line.quantity_ordered || 0) * Number(line.price_at_purchase || 0),
+    0
+  );
+
   const base = {
     orderId: order.order_id,
     date: order.createdAt,
     status: order.status,
-    totalAmount: Number(order.total_amount || 0),
+    totalAmount: calculatedTotal,
     shippingAddress: order.shipping_address,
     trackingNumber: order.tracking_number || '',
     shippedAt: order.shipped_at || null,
@@ -73,7 +78,6 @@ exports.createOrder = async (req, res) => {
 
     const newOrder = await Order.create({
       user_id: userId,
-      total_amount,
       shipping_address,
       status: 'processing'
     }, { transaction: t });
@@ -88,7 +92,7 @@ exports.createOrder = async (req, res) => {
     await OrderItem.bulkCreate(orderItemsData, { transaction: t });
 
     await t.commit();
-try {
+    try {
       const itemsHtml = cart.map(item => `
         <tr>
           <td style="padding:10px 0; border-bottom:1px solid #eee;">${item.name || item.description || 'Item'}</td>

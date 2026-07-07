@@ -1,36 +1,29 @@
-// controllers/dashboard.js additions — rewritten for your actual Sequelize
-// models (require('../models') -> models/index.js) and real schema:
-//
-//   Order:      order_id, user_id, total_amount, status ENUM('processing',
-//               'shipped','delivered','cancelled'), created_at (underscored)
-//   OrderItem:  order_item_id, order_id, item_id, quantity_ordered,
-//               price_at_purchase  (table: order_items, no timestamps)
-//   Item:       assumed to have a `name` column — change below if different
-//   User:       role ('admin' | 'customer')  (confirmed from phpMyAdmin)
-//
-// NOTE: your Order.status enum has no 'pending' or 'completed' value, only
-// processing / shipped / delivered / cancelled. So:
-//   - "totalRevenue" and the sales charts treat 'delivered' as the
-//     completed/paid state (adjust if you use a different status for that).
-//   - orderStatus() below returns pending: 0 always, and completed is an
-//     alias for delivered, just so the existing frontend cards don't break.
-//     Better long-term fix: drop the Pending/Completed cards from the
-//     dashboard and just show the 4 real statuses — say the word and I'll
-//     update admin-dashboard.html to match.
-
 const { Sequelize, Op, fn, col, literal } = require('sequelize');
 const { Order, OrderItem, Item, User } = require('../models');
 
 exports.dashboardStats = async (req, res) => {
   try {
-    const totalRevenue = await Order.sum('total_amount', { where: { status: 'delivered' } });
+    const totalRevenueResult = await OrderItem.findOne({
+      attributes: [
+        [fn('SUM', literal('quantity_ordered * price_at_purchase')), 'total']
+      ],
+      include: [{
+        model: Order,
+        as: 'order',
+        attributes: [],
+        where: { status: 'delivered' }
+      }],
+      raw: true
+    });
+
+    const totalRevenue = totalRevenueResult ? Number(totalRevenueResult.total) : 0;
     const totalUsers = await User.count();
     const totalProducts = await Item.count();
     const totalCustomers = await User.count({ where: { role: 'customer' } });
     const totalAdmins = await User.count({ where: { role: 'admin' } });
 
     res.json({
-      totalRevenue: totalRevenue || 0,
+      totalRevenue,
       totalUsers,
       totalProducts,
       totalCustomers,
@@ -75,17 +68,22 @@ exports.salesPerformance = async (req, res) => {
       endDate = end.toISOString().slice(0, 10);
     }
 
-    const rows = await Order.findAll({
+    const rows = await OrderItem.findAll({
       attributes: [
-        [fn('DATE', col('created_at')), 'day'],
-        [fn('SUM', col('total_amount')), 'total']
+        [fn('DATE', col('order.created_at')), 'day'],
+        [fn('SUM', literal('quantity_ordered * price_at_purchase')), 'total']
       ],
-      where: {
-        status: 'delivered',
-        created_at: { [Op.between]: [`${startDate} 00:00:00`, `${endDate} 23:59:59`] }
-      },
-      group: [fn('DATE', col('created_at'))],
-      order: [[fn('DATE', col('created_at')), 'ASC']],
+      include: [{
+        model: Order,
+        as: 'order',
+        attributes: [],
+        where: {
+          status: 'delivered',
+          created_at: { [Op.between]: [`${startDate} 00:00:00`, `${endDate} 23:59:59`] }
+        }
+      }],
+      group: [fn('DATE', col('order.created_at'))],
+      order: [[fn('DATE', col('order.created_at')), 'ASC']],
       raw: true
     });
 
@@ -102,16 +100,19 @@ exports.salesPerformance = async (req, res) => {
 // Monthly totals for the current year
 exports.yearlyRevenue = async (req, res) => {
   try {
-    const rows = await Order.findAll({
+    const rows = await OrderItem.findAll({
       attributes: [
-        [fn('YEAR', col('created_at')), 'year'],
-        [fn('SUM', col('total_amount')), 'total']
+        [fn('YEAR', col('order.created_at')), 'year'],
+        [fn('SUM', literal('quantity_ordered * price_at_purchase')), 'total']
       ],
-      where: {
-        status: 'delivered'
-      },
-      group: [fn('YEAR', col('created_at'))],
-      order: [[fn('YEAR', col('created_at')), 'ASC']],
+      include: [{
+        model: Order,
+        as: 'order',
+        attributes: [],
+        where: { status: 'delivered' }
+      }],
+      group: [fn('YEAR', col('order.created_at'))],
+      order: [[fn('YEAR', col('order.created_at')), 'ASC']],
       raw: true
     });
 

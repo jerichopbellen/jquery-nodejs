@@ -16,10 +16,6 @@ const Order = sequelize.define('Order', {
       key: 'user_id'
     }
   },
-  total_amount: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: false
-  },
   shipping_address: {
     type: DataTypes.TEXT,
     allowNull: false
