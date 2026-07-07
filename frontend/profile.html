@@ -30,6 +30,10 @@
 
     <!-- Main Dynamic Form Wrapper -->
     <form id="profileForm" enctype="multipart/form-data" class="p-0 border-0 bg-transparent box-shadow-none" style="max-width: 100%; box-shadow: none;">
+      
+      <!-- Hidden field to notify backend if avatar should be removed -->
+      <input type="hidden" id="removeAvatarFlag" name="removeAvatar" value="false" />
+
       <div class="row">
         
         <!-- Left Side Column: Profile Identity Card -->
@@ -47,6 +51,12 @@
               
               <!-- Hidden dynamic file selector field -->
               <input type="file" id="avatar" name="image" accept="image/*" class="d-none" disabled />
+              
+              <!-- Remove Photo Button -->
+              <button type="button" id="removeAvatarBtn" class="btn btn-outline-danger btn-sm mt-3" style="display: none; width: 100%; max-width: 180px;">
+                Remove Photo
+              </button>
+
               <p class="text-muted small mt-3 mb-0">Supported files: JPG, PNG.<br>Select Edit to modify details.</p>
             </div>
 

@@ -237,7 +237,14 @@ const updateMyProfile = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    const nextAvatar = req.file ? path.join('images', req.file.filename).replace(/\\/g, '/') : user.avatar;
+    let nextAvatar = user.avatar;
+
+    // Check if user has explicitly requested to delete their profile photo
+    if (req.body.removeAvatar === 'true') {
+      nextAvatar = '';
+    } else if (req.file) {
+      nextAvatar = path.join('images', req.file.filename).replace(/\\/g, '/');
+    }
 
     await user.update({
       first_name: req.body.fname ?? user.first_name,

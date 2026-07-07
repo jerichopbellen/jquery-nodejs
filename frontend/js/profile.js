@@ -3,7 +3,7 @@ $(document).ready(function () {
 
   const token = localStorage.getItem('token') || '';
   const userId = Number(localStorage.getItem('userId') || 0);
-  const defaultAvatar = 'images/default-gadget.jpg';
+  const defaultAvatar = `${url}images/default-avatar.png`;
 
   if (!token) {
     Swal.fire({ icon: 'warning', text: 'Please login first.' }).then(() => {
@@ -18,6 +18,21 @@ $(document).ready(function () {
     else $('#itemCount').hide();
   }
 
+  // Toggles the visibility of the "Remove Photo" button
+  function updateRemoveAvatarBtnVisibility() {
+    const inEditMode = $('#updateBtn').is(':visible');
+    const currentSrc = $('#avatarPreview').attr('src') || '';
+    
+    // Check if the current preview is a custom avatar or the default placeholder
+    const hasCustomAvatar = currentSrc && !currentSrc.includes(defaultAvatar);
+
+    if (inEditMode && hasCustomAvatar) {
+      $('#removeAvatarBtn').show();
+    } else {
+      $('#removeAvatarBtn').hide();
+    }
+  }
+
   function setProfileForm(profile) {
     $('#firstName').val(profile.firstName || '');
     $('#lastName').val(profile.lastName || '');
@@ -25,7 +40,10 @@ $(document).ready(function () {
     $('#phone').val(profile.phone || '');
     $('#zipcode').val(profile.zipcode || '');
 
-    // Set Sidebar Display Full Name cleanly
+    // Reset the deletion flag state
+    $('#removeAvatarFlag').val('false');
+
+    // Set Sidebar Display Full Name
     if (profile.firstName || profile.lastName) {
       const fullDisplay = [profile.firstName, profile.lastName].filter(Boolean).join(' ').trim();
       $('#profileSidebarFullName').text(fullDisplay);
@@ -39,6 +57,8 @@ $(document).ready(function () {
     } else {
       $('#avatarPreview').attr('src', defaultAvatar).show();
     }
+
+    updateRemoveAvatarBtnVisibility();
   }
 
   // --- display/edit mode helpers ---
@@ -55,6 +75,7 @@ $(document).ready(function () {
     $('#editBtn').show();
     $('#updateBtn').hide();
     $('#cancelBtn').hide();
+    $('#removeAvatarBtn').hide();
   }
 
   function showEditMode() {
@@ -67,6 +88,8 @@ $(document).ready(function () {
     $('#editBtn').hide();
     $('#updateBtn').show();
     $('#cancelBtn').show();
+    
+    updateRemoveAvatarBtnVisibility();
   }
 
   // Interactive Avatar Click Handler: Routes clicks to the file field when editable
@@ -79,8 +102,17 @@ $(document).ready(function () {
   $('#editBtn').on('click', showEditMode);
 
   $('#cancelBtn').on('click', function () {
+    $('#removeAvatarFlag').val('false');
     if (lastLoadedProfile) setProfileForm(lastLoadedProfile);
     showDisplayMode();
+  });
+
+  // Action to remove profile image (clears input, displays default, sets backend flag)
+  $('#removeAvatarBtn').on('click', function () {
+    $('#avatar').val(''); // Clear any newly chosen files
+    $('#avatarPreview').attr('src', defaultAvatar).show();
+    $('#removeAvatarFlag').val('true');
+    updateRemoveAvatarBtnVisibility();
   });
 
   function loadProfile() {
@@ -113,7 +145,11 @@ $(document).ready(function () {
     const file = this.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (e) => $('#avatarPreview').attr('src', e.target.result).show();
+    reader.onload = (e) => {
+      $('#avatarPreview').attr('src', e.target.result).show();
+      $('#removeAvatarFlag').val('false'); // Clear deletion flag because a new image is loaded
+      updateRemoveAvatarBtnVisibility();
+    };
     reader.readAsDataURL(file);
   });
 
