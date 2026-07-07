@@ -104,19 +104,19 @@ exports.yearlyRevenue = async (req, res) => {
   try {
     const rows = await Order.findAll({
       attributes: [
-        [fn('DATE_FORMAT', col('created_at'), '%Y-%m'), 'month'],
+        [fn('YEAR', col('created_at')), 'year'],
         [fn('SUM', col('total_amount')), 'total']
       ],
       where: {
         status: 'delivered'
       },
-      group: [fn('DATE_FORMAT', col('created_at'), '%Y-%m')],
-      order: [[fn('DATE_FORMAT', col('created_at'), '%Y-%m'), 'ASC']],
+      group: [fn('YEAR', col('created_at'))],
+      order: [[fn('YEAR', col('created_at')), 'ASC']],
       raw: true
     });
 
     res.json({
-      labels: rows.map((r) => r.month),
+      labels: rows.map((r) => r.year),
       values: rows.map((r) => Number(r.total))
     });
   } catch (err) {
