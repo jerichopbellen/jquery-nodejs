@@ -193,7 +193,7 @@ $(document).ready(function () {
           data: {
             labels,
             datasets: [{
-              label: 'Monthly Sales',
+              label: 'Yearly Sales',
               data: values,
               fill: true,
               backgroundColor: 'rgba(21, 101, 224, 0.1)',

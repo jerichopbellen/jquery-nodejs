@@ -108,8 +108,7 @@ exports.yearlyRevenue = async (req, res) => {
         [fn('SUM', col('total_amount')), 'total']
       ],
       where: {
-        status: 'delivered',
-        created_at: { [Op.gte]: literal('DATE_FORMAT(CURDATE(), "%Y-01-01")') }
+        status: 'delivered'
       },
       group: [fn('DATE_FORMAT', col('created_at'), '%Y-%m')],
       order: [[fn('DATE_FORMAT', col('created_at'), '%Y-%m'), 'ASC']],
