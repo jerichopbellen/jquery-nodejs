@@ -654,7 +654,8 @@ input[type="submit"]:active {
 
 #itemImagesCarousel .carousel-item img {
     height: 250px;
-    object-fit: contain;
+    width: 100%;
+    object-fit: cover;
 }
 
 /* ==================== DASHBOARD ==================== */
@@ -1226,22 +1227,25 @@ input.valid {
     }
 
     .product-img-wrapper {
-      position: relative;
-      background-color: #ffffff;
-      height: 220px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 1.5rem;
-      overflow: hidden;
-      border-bottom: 1px solid #f5f5f5;
+        position: relative;
+        background-color: #ffffff;
+        height: 220px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem; /* This can stay safely now */
+        overflow: hidden;
+        border-bottom: 1px solid #f5f5f5;
     }
 
     .product-img-wrapper img {
-      max-height: 100%;
-      max-width: 100%;
-      object-fit: contain;
-      transition: transform 0.4s ease;
+        position: absolute;  /* Breaks out of padding and fills the relative container */
+        top: 0;
+        left: 0;
+        width: 100%;         /* Forces full width */
+        height: 100%;        /* Forces full height (220px) */
+        object-fit: cover;   /* Crops cleanly without stretching distortion */
+        transition: transform 0.4s ease;
     }
 
     .product-card:hover .product-img-wrapper img {
