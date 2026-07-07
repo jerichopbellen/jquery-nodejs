@@ -17,38 +17,46 @@
   <script src="js/header.js"></script>
   <script src="js/auth/login.js"></script>
 </head>
-<body>
+<body style="background-color: #f8f9fa;">
   <div id="header"></div>
 
-  <form id="loginForm" style="max-width: 400px; margin: 30px auto">
-    <h2>Login</h2>
+  <div class="container" style="margin-top: 60px; margin-bottom: 60px;">
+    <div class="row justify-content-center">
+      <div class="col-md-8 col-lg-5">
+            
+            <form id="loginForm">
+              <h2 class="text-center mb-4" style="color: #2c3550; font-weight: bold; letter-spacing: 0.5px;">Login</h2>
 
-    <div style="margin-bottom: 15px">
-      <label for="email">Email:</label><br />
-      <input type="email" id="email" name="email" style="width: 100%; padding: 8px" />
+              <div class="form-group" style="margin-bottom: 20px;">
+                <label for="email" style="font-weight: 500; color: #4a5568; font-size: 14px;">Email Address</label>
+                <input type="email" id="email" name="email" class="form-control" style="padding: 10px; height: auto;" placeholder="name@example.com" />
+              </div>
+
+              <div class="form-group" style="margin-bottom: 28px;">
+                <label for="password" style="font-weight: 500; color: #4a5568; font-size: 14px;">Password</label>
+                <div style="position: relative;">
+                  <input type="password" id="password" name="password" class="form-control" style="padding: 10px; padding-right: 45px; height: auto;" placeholder="••••••••" />
+                  <button type="button" id="togglePassword" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 0; display: flex; align-items: center; color: #718096;">
+                    <svg id="eyeIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <button type="submit" id="login" style="width: 100%; padding: 12px; background: #2c3550; color: #fff; border: none; border-radius: 6px; font-weight: 600; font-size: 16px; cursor: pointer; transition: background 0.2s;">
+                Login
+              </button>
+
+              <p class="mt-4 mb-0 text-center" style="color: #4a5568; font-size: 14px;">
+                Don’t have an account?
+                <a href="register.html" style="color: #2c3550; font-weight: 600; text-decoration: none;">Register</a>
+              </p>
+            </form>
+
+        </div>
     </div>
-
-    <div style="margin-bottom: 15px">
-      <label for="password">Password:</label><br />
-      <div style="position: relative;">
-        <input type="password" id="password" name="password" style="width: 100%; padding: 8px; padding-right: 40px;" />
-        <button type="button" id="togglePassword" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 0; display: flex; align-items: center;">
-          <svg id="eyeIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-            <circle cx="12" cy="12" r="3"></circle>
-          </svg>
-        </button>
-      </div>
-    </div>
-
-    <button type="submit" id="login" style="width: 100%; padding: 10px; background: #007bff; color: #fff; border: none; border-radius: 4px;">
-      Login
-    </button>
-
-    <p class="mt-3 mb-0 text-center">
-      Don’t have an account?
-      <a href="register.html">Register</a>
-    </p>
-  </form>
+  </div>
 </body>
 </html>
