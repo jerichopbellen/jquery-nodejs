@@ -19,7 +19,6 @@ $(document).ready(function () {
 
   $('#wrapper').show();
 
-  
   const STATUS_OPTIONS = ['processing', 'shipped', 'delivered', 'cancelled'];
 
   const statusColors = {
@@ -29,10 +28,10 @@ $(document).ready(function () {
     cancelled: '#e74c3c'   // red
   };
 
- function formatCurrency(amount) {
-  const n = Number(amount);
-  return isNaN(n) ? amount : `₱${n.toFixed(2)}`;
-}
+  function formatCurrency(amount) {
+    const n = Number(amount);
+    return isNaN(n) ? amount : `₱${n.toFixed(2)}`;
+  }
 
   function formatDate(dateStr) {
     if (!dateStr) return '';
@@ -81,10 +80,8 @@ $(document).ready(function () {
     ]
   });
 
-  // build the inline expanded details panel HTML for a given order row
   function buildDetailsPanel(rowData) {
     const items = rowData.items || [];
-
     const itemsRows = items.length
       ? items
           .map((item) => {
@@ -113,18 +110,15 @@ $(document).ready(function () {
             <strong>Placed on:</strong> ${formatDate(rowData.date)}
           </div>
         </div>
-
         <div class="mb-3">
           <strong>Shipping address:</strong>
           <p class="mb-0">${rowData.shippingAddress || '—'}</p>
         </div>
-
         ${
           rowData.trackingNumber
             ? `<div class="mb-3"><strong>Tracking number:</strong> ${rowData.trackingNumber}</div>`
             : ''
         }
-
         <div class="table-responsive">
           <table class="table table-sm table-bordered mb-0">
             <thead>
@@ -148,7 +142,6 @@ $(document).ready(function () {
     `;
   }
 
-  // toggle the inline details panel below the clicked row
   $('#ordersTable tbody').on('click', '.viewOrderBtn', function () {
     const $btn = $(this);
     const tr = $btn.closest('tr');
@@ -174,13 +167,37 @@ $(document).ready(function () {
     $('#orderCustomer').val(rowData.customerName || '');
     $('#orderTotal').val(formatCurrency(rowData.totalAmount));
 
-    const currentStatus = STATUS_OPTIONS.includes(rowData.status) ? rowData.status : STATUS_OPTIONS[0];
-    $('#orderStatus').val(currentStatus);
+    const currentStatus = rowData.status;
+    const $statusSelect = $('#orderStatus');
+
+    // Reset: Enable all options first
+    $statusSelect.find('option').prop('disabled', false);
+
+    // Set the current value
+    const valToSet = STATUS_OPTIONS.includes(currentStatus) ? currentStatus : STATUS_OPTIONS[0];
+    $statusSelect.val(valToSet);
+
+    // Business Logic for graying out options
+    if (currentStatus === 'shipped') {
+      // Cannot revert to processing
+      $statusSelect.find('option[value="processing"]').prop('disabled', true);
+    } 
+    else if (currentStatus === 'delivered') {
+      // Final state: Cannot change to anything else
+      $statusSelect.find('option[value="processing"]').prop('disabled', true);
+      $statusSelect.find('option[value="shipped"]').prop('disabled', true);
+      $statusSelect.find('option[value="cancelled"]').prop('disabled', true);
+    }
+    else if (currentStatus === 'cancelled') {
+      // Final state: Cannot revert a cancelled order
+      $statusSelect.find('option[value="processing"]').prop('disabled', true);
+      $statusSelect.find('option[value="shipped"]').prop('disabled', true);
+      $statusSelect.find('option[value="delivered"]').prop('disabled', true);
+    }
 
     $('#ordersModal').modal('show');
   });
 
-  // submit status update
   $('#orderUpdateBtn').on('click', function () {
     const orderId = $('#orderIdField').val();
     const newStatus = $('#orderStatus').val();
@@ -223,7 +240,6 @@ $(document).ready(function () {
     });
   });
 
-  // delete an order
   $('#ordersTable tbody').on('click', '.deleteOrderBtn', function () {
     const rowData = ordersTable.row($(this).closest('tr')).data();
     if (!rowData) return;
